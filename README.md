@@ -1,6 +1,6 @@
 # Super API Bros
 
-Jogo de plataforma 2D em **Java 17**, em português, para aprender consumo de APIs jogando e programando. Explore três fases, pule sobre bugs, colete dados e monte requisições HTTP nos terminais para liberar os portais.
+Jogo de plataforma 2D em **Java 17**, em português, para aprender consumo de APIs jogando e programando. Explore seis fases, pule sobre bugs, colete dados e monte requisições HTTP nos terminais para liberar os portais.
 
 Visual e personagens próprios, inspirados no gênero de plataformas clássicas. Não utiliza imagens, músicas, personagens ou marcas da Nintendo como assets.
 
@@ -21,7 +21,7 @@ O JAR executável já está incluído. Também há `run.bat` (Windows, duplo cli
 | Enter | Iniciar |
 | A/D ou setas esquerda/direita | Mover |
 | Espaço, W ou seta para cima | Pular |
-| E, perto do terminal `{ }` | Abrir laboratório HTTP |
+| E, perto do terminal `{ }` | Conectar à central HTTP |
 | P | Pausar/continuar; o jogo pausa ao perder foco |
 | R, após vitória ou derrota | Reiniciar |
 
@@ -34,6 +34,9 @@ Vá até o terminal, leia o contrato, preencha os campos e envie a requisição.
 | Jardim dos endpoints | `GET /world/1` | Cliente, servidor, endpoint, contrato, JSON, 200, 404, 405 |
 | Fortaleza das chaves | `GET /keys?color=blue` | Query, cabeçalhos, token didático, 400 e 401 |
 | Oficina das pontes | `POST /bridges` | Corpo JSON, Content-Type, 201, 415 e 422 |
+| Cavernas de cristal | `GET /weather?region=crystal` | Consulta de sensores e filtro por região |
+| Deserto dos sinais | `PUT /beacon` | Substituição de configuração e idempotência |
+| Cidade suspensa | `DELETE /interference` | Remoção autenticada e interpretação do resultado |
 
 Uma API é uma interface que permite a programas usar funcionalidades e dados de outros componentes. APIs podem servir para consultar endereços, integrar pagamentos ou acessar informações meteorológicas. Este projeto ensina **APIs HTTP**; nem toda API usa HTTP ou JSON.
 
@@ -71,4 +74,8 @@ Veja [o guia de aula e exercícios](docs/GUIA-PROFESSOR.md) e [o contrato comple
 
 ## Limites desta versão
 
-As três fases reutilizam a geometria, mudam o tema e aumentam a velocidade dos inimigos. A partida não salva em disco. POST demonstra criação e retorna `201` e `Location`, mas não mantém um cadastro de pontes nem implementa GET no endereço de Location. A credencial `aluno-api` é pública e exclusivamente didática. Para uma API de produção, use autenticação real, HTTPS e uma biblioteca JSON completa.
+As seis regiões têm 4.800 unidades de extensão cada (antes: 2.400), 12 plataformas elevadas (antes: 5), 18 dados e 11 inimigos (antes: 2). Floresta, fortaleza, oficina, cavernas de cristal, deserto e cidade suspensa usam paletas e silhuetas próprias com paralaxe. As posições dos buracos e escadas variam por região. Patrulheiros caminham no chão e em plataformas; saltadores pulam e drones oscilam no ar. Todos podem ser vencidos por um salto sobre o topo; contato lateral causa dano.
+
+A interface se apresenta como **Rede dos Horizontes**: uma expedição para restabelecer centrais isoladas. Terminais, protocolos e respostas HTTP fazem parte da narrativa. Os controles e contratos continuam explícitos para manter a experiência acessível.
+
+PUT e DELETE, como POST, são demonstrações sem persistência: repetir a mesma requisição retorna a mesma confirmação. A partida não salva em disco. POST demonstra criação e retorna `201` e `Location`, mas não mantém um cadastro de pontes nem implementa GET no endereço de Location. A credencial `aluno-api` é pública e exclusivamente didática. Para uma API de produção, use autenticação real, HTTPS e uma biblioteca JSON completa.

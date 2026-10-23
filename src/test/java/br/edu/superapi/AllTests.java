@@ -44,12 +44,26 @@ public final class AllTests {
                 try { Json.parse(bad); throw new AssertionError("JSON inválido aceito"); }
                 catch (IllegalArgumentException expected) { checks++; }
             }
+            String[] methods = {"GET", "PUT", "DELETE"};
+            String[] paths = {"/weather?region=crystal", "/beacon", "/interference"};
+            for (int i = 0; i < 3; i++) {
+                var response = request(client, methods[i], paths[i], "Bearer aluno-api", "application/json", i == 1 ? "{\"signal\":\"on\"}" : "");
+                check(Lesson.ALL[i + 3].accepts(methods[i], paths[i], response), "Novo contrato " + i);
+                check(!Lesson.ALL[i].accepts(methods[i], paths[i], response), "Sem desbloqueio cruzado");
+                check(request(client, "POST", paths[i], "", "", "").statusCode() == 405, "Método novo inválido");
+            }
+            check(request(client, "GET", "/weather?region=desert", "", "", "").statusCode() == 400, "Sensor inválido");
+            check(request(client, "DELETE", "/interference", "", "", "").statusCode() == 401, "Remoção exige credencial");
+            check(request(client, "PUT", "/beacon", "", "", "{}").statusCode() == 415, "Farol exige JSON");
+            check(request(client, "PUT", "/beacon", "", "application/json", "{").statusCode() == 400, "Farol rejeita JSON quebrado");
+            check(request(client, "PUT", "/beacon", "", "application/json", "{}").statusCode() == 422, "Farol exige signal");
+            check(request(client, "PUT", "/beacon", "", "application/json", " ".repeat(4097)).statusCode() == 413, "Farol limita corpo");
             GameModel game = new GameModel();
             for (int i = 0; i < 40; i++) game.tick(false, false, false);
             check(game.grounded && game.y == GameModel.FLOOR - 38, "Gravidade e chão");
             game.tick(false, false, true); check(game.vy < 0, "Salto");
             double speed = game.vy; game.tick(false, false, true); check(game.vy > speed, "Sem salto infinito no ar");
-            game.x = 1465; game.y = 452; game.vy = 0;
+            game.x = GameModel.GATE_X - 35; game.y = 452; game.vy = 0;
             for (int i = 0; i < 20; i++) game.tick(false, true, false);
             check(game.x <= GameModel.GATE_X - 28, "Portal bloqueia passagem");
             game.unlocked = true;
@@ -59,12 +73,39 @@ public final class AllTests {
             for (int i = 0; i < 43; i++) game.tick(false, true, i == 0);
             check(game.x > 900 && game.lives == 3, "Buraco é atravessável com salto");
             game.y = 700; game.tick(false, false, false);
-            check(game.lives == 2 && game.x == 1390, "Queda e checkpoint");
-            game.x = 2300; game.tick(false, false, false);
+            check(game.lives == 2 && game.x == GameModel.TERMINAL_X + 20, "Queda e checkpoint");
+            game.x = GameModel.EXIT_X + 10; game.tick(false, false, false);
             check(game.level == 1 && !game.unlocked, "Avanço reseta portal");
-            game.unlocked = true; game.x = 2300; game.tick(false, false, false);
-            game.unlocked = true; game.x = 2300; game.tick(false, false, false);
-            check(game.won, "Vitória nas três fases");
+            while (!game.won) {
+                game.unlocked = true; game.x = GameModel.EXIT_X + 10; game.tick(false, false, false);
+            }
+            check(game.won && game.level == 5, "Vitória somente após seis regiões");
+            check(GameModel.WIDTH == 4800, "Comprimento duplicado");
+            for (int region = 0; region < Lesson.ALL.length; region++) {
+                game.restart(); game.level = region; game.load();
+                check(game.platforms.size() == 15 && game.enemies.size() == 11, "Plataformas e inimigos por região");
+                check(game.collectibles.size() == 18, "Dados nas rotas elevadas");
+                game.enemies.clear();
+                game.x = GameModel.TERMINAL_X; game.y = 452;
+                check(game.nearTerminal(), "Central acessível");
+                // Both gaps can be crossed with the actual fixed-step physics.
+                for (int gap : new int[]{780 + region * 40, 3300 + region * 45}) {
+                    game.x = gap - 40; game.y = 452; game.vy = 0; game.grounded = true;
+                    int lives = game.lives;
+                    for (int step = 0; step < 43; step++) game.tick(false, true, step == 0);
+                    check(game.x > gap + 120 && game.lives == lives, "Salto atravessa buraco " + region + " gap=" + gap + " x=" + game.x + " lives=" + game.lives);
+                }
+                game.load(); game.invincible = 0;
+                var enemy = game.enemies.get(5);
+                game.x = enemy.x; game.y = enemy.bounds().y - 39; game.vy = 3;
+                game.tick(false, false, false);
+                check(!enemy.alive && game.vy < 0, "Pisar elimina patrulheiro");
+                game.load(); game.invincible = 0;
+                enemy = game.enemies.get(5); game.x = enemy.x; game.y = enemy.bounds().y;
+                int lives = game.lives; game.tick(false, false, false);
+                check(game.lives == lives - 1, "Contato lateral causa dano");
+                game.lives = 3;
+            }
             game.restart(); game.lives = 1; game.y = 700; game.tick(false, false, false);
             check(game.gameOver, "Fim de jogo");
             game.restart(); check(game.lives == 3 && !game.won && !game.gameOver && game.level == 0, "Reinício");
@@ -75,6 +116,14 @@ public final class AllTests {
                     BufferedImage image = new BufferedImage(1000, 600, BufferedImage.TYPE_INT_RGB);
                     var graphics = image.createGraphics(); panel.paint(graphics); graphics.dispose();
                     ImageIO.write(image, "png", new File("build/preview.png"));
+                    var field = GamePanel.class.getDeclaredField("model"); field.setAccessible(true);
+                    var started = GamePanel.class.getDeclaredField("started"); started.setAccessible(true); started.set(panel, true);
+                    GameModel rendered = (GameModel)field.get(panel);
+                    for (int region = 0; region < Lesson.ALL.length; region++) {
+                        rendered.level = region; rendered.load(); rendered.x = 2600;
+                        graphics = image.createGraphics(); panel.paint(graphics); graphics.dispose();
+                        ImageIO.write(image, "png", new File("build/region-" + region + ".png"));
+                    }
                 } catch (Exception ex) { throw new RuntimeException(ex); }
             });
         }

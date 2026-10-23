@@ -25,20 +25,30 @@ public final class AcademyServer implements AutoCloseable {
         try (exchange) {
             String path = exchange.getRequestURI().getPath();
             String method = exchange.getRequestMethod();
-            if (!path.equals("/world/1") && !path.equals("/keys") && !path.equals("/bridges")) {
+            if (!path.equals("/world/1") && !path.equals("/keys") && !path.equals("/bridges") && !path.equals("/weather")
+                    && !path.equals("/beacon") && !path.equals("/interference")) {
                 reply(exchange, 404, "{\"error\":\"Endpoint inexistente. Confira o caminho no contrato.\"}"); return;
             }
-            String expected = path.equals("/bridges") ? "POST" : "GET";
+            String expected = path.equals("/bridges") ? "POST" : path.equals("/beacon") ? "PUT"
+                    : path.equals("/interference") ? "DELETE" : "GET";
             if (!expected.equals(method)) {
                 exchange.getResponseHeaders().set("Allow", expected);
                 reply(exchange, 405, "{\"error\":\"Método incorreto. Consulte o cabeçalho Allow.\"}"); return;
             }
             if (path.equals("/world/1")) {
                 reply(exchange, 200, "{\"world\":\"Jardim dos endpoints\",\"gate\":\"open\"}");
-            } else if (path.equals("/keys")) {
+            } else if (path.equals("/weather")) {
+                if (!"region=crystal".equals(exchange.getRequestURI().getRawQuery())) {
+                    reply(exchange, 400, "{\"error\":\"Envie region=crystal.\"}"); return;
+                }
+                reply(exchange, 200, "{\"weather\":\"clear\",\"gate\":\"open\"}");
+            } else if (path.equals("/keys") || path.equals("/interference")) {
                 if (!"Bearer aluno-api".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
                     exchange.getResponseHeaders().set("WWW-Authenticate", "Bearer");
                     reply(exchange, 401, "{\"error\":\"Envie Authorization: Bearer aluno-api. Token somente didático.\"}"); return;
+                }
+                if (path.equals("/interference")) {
+                    reply(exchange, 200, "{\"interference\":\"removed\",\"gate\":\"open\"}"); return;
                 }
                 if (!"color=blue".equals(exchange.getRequestURI().getRawQuery())) {
                     reply(exchange, 400, "{\"error\":\"Esta API espera a query exata color=blue.\"}"); return;
@@ -54,6 +64,12 @@ public final class AcademyServer implements AutoCloseable {
                 Map<String, String> body;
                 try { body = Json.parse(new String(bytes, StandardCharsets.UTF_8)); }
                 catch (IllegalArgumentException ex) { reply(exchange, 400, "{\"error\":\"JSON inválido. Use um objeto com valores string.\"}"); return; }
+                if (path.equals("/beacon")) {
+                    if (!"on".equals(body.get("signal"))) {
+                        reply(exchange, 422, "{\"error\":\"signal deve ser on.\"}"); return;
+                    }
+                    reply(exchange, 200, "{\"beacon\":\"lit\",\"gate\":\"open\"}"); return;
+                }
                 if (!"wood".equals(body.get("material"))) {
                     reply(exchange, 422, "{\"error\":\"JSON válido, mas material deve ser wood.\"}"); return;
                 }
