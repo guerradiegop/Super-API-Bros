@@ -46,7 +46,13 @@ public record Lesson(String title, String explanation, String contract, String m
         new Lesson("08 / Horizonte das cinzas",
             "A central respira ar contaminado. Reconfigure o purificador com PUT.\nA manutenção exige credencial, Content-Type e o filtro correto.",
             "PUT /purifier\nAuthorization: Bearer aluno-api\nContent-Type: application/json\nCorpo: {\"filter\":\"carbon\"}\nResposta: 200 + JSON com air e gate.",
-            "PUT", "/purifier", 200, "air", "clean", "Qual condição aparece em air?")
+            "PUT", "/purifier", 200, "air", "clean", "Qual condição aparece em air?"),
+        new Lesson("Leitura das marés", "Ajuste a rota marítima consultando o sensor de marés.",
+            "GET /tides?mode=low\nResposta: 200 + JSON com tide e gate.",
+            "GET", "/tides?mode=low", 200, "tide", "low", "Qual é o valor de tide?"),
+        new Lesson("Reator da aurora", "Alimente o reator com uma célula solar para restaurar a conexão.",
+            "POST /reactor\nContent-Type: application/json\nCorpo: {\"cell\":\"solar\"}\nResposta: 201 + JSON com reactor e gate.",
+            "POST", "/reactor", 201, "reactor", "online", "Qual é o valor de reactor?")
     };
     public boolean accepts(String sentMethod, String sentPath, HttpResponse<String> response) {
         if (!method.equals(sentMethod) || !path.equals(sentPath) || response.statusCode() != status) return false;

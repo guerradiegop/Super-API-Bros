@@ -36,8 +36,8 @@ public final class LabDialog extends JDialog {
         JPanel south = new JPanel(new GridLayout(0, 1, 4, 4));
         south.add(new JLabel(lesson.question()));
         JTextField answer = new JTextField(); south.add(answer);
-        JLabel feedback = new JLabel("Uma resposta correta + sua interpretação liberam o portal."); south.add(feedback);
-        JButton confirm = new JButton("Validar resposta e liberar passagem"); south.add(confirm);
+        JLabel feedback = new JLabel("Uma resposta correta + sua interpretação restabelecem esta central."); south.add(feedback);
+        JButton confirm = new JButton("Validar resposta e restabelecer central"); south.add(confirm);
         JButton back = new JButton("Retomar travessia"); south.add(back);
         root.add(south, BorderLayout.SOUTH);
         send.addActionListener(event -> {

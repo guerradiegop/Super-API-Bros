@@ -27,10 +27,11 @@ public final class AcademyServer implements AutoCloseable {
             String method = exchange.getRequestMethod();
             if (!path.equals("/world/1") && !path.equals("/keys") && !path.equals("/bridges") && !path.equals("/weather")
                     && !path.equals("/beacon") && !path.equals("/interference")
-                    && !path.equals("/heaters") && !path.equals("/purifier")) {
+                    && !path.equals("/heaters") && !path.equals("/purifier")
+                    && !path.equals("/tides") && !path.equals("/reactor")) {
                 reply(exchange, 404, "{\"error\":\"Endpoint inexistente. Confira o caminho no contrato.\"}"); return;
             }
-            String expected = (path.equals("/bridges") || path.equals("/heaters")) ? "POST"
+            String expected = (path.equals("/bridges") || path.equals("/heaters") || path.equals("/reactor")) ? "POST"
                     : (path.equals("/beacon") || path.equals("/purifier")) ? "PUT"
                     : path.equals("/interference") ? "DELETE" : "GET";
             if (!expected.equals(method)) {
@@ -39,6 +40,11 @@ public final class AcademyServer implements AutoCloseable {
             }
             if (path.equals("/world/1")) {
                 reply(exchange, 200, "{\"world\":\"Jardim dos endpoints\",\"gate\":\"open\"}");
+            } else if (path.equals("/tides")) {
+                if (!"mode=low".equals(exchange.getRequestURI().getRawQuery())) {
+                    reply(exchange, 400, "{\"error\":\"Envie mode=low.\"}"); return;
+                }
+                reply(exchange, 200, "{\"tide\":\"low\",\"gate\":\"open\"}");
             } else if (path.equals("/weather")) {
                 if (!"region=crystal".equals(exchange.getRequestURI().getRawQuery())) {
                     reply(exchange, 400, "{\"error\":\"Envie region=crystal.\"}"); return;
@@ -70,6 +76,13 @@ public final class AcademyServer implements AutoCloseable {
                 Map<String, String> body;
                 try { body = Json.parse(new String(bytes, StandardCharsets.UTF_8)); }
                 catch (IllegalArgumentException ex) { reply(exchange, 400, "{\"error\":\"JSON inválido. Use um objeto com valores string.\"}"); return; }
+                if (path.equals("/reactor")) {
+                    if (!"solar".equals(body.get("cell"))) {
+                        reply(exchange, 422, "{\"error\":\"cell deve ser solar.\"}"); return;
+                    }
+                    exchange.getResponseHeaders().set("Location", "/reactor/demo");
+                    reply(exchange, 201, "{\"reactor\":\"online\",\"gate\":\"open\"}"); return;
+                }
                 if (path.equals("/heaters") || path.equals("/purifier")) {
                     boolean heater = path.equals("/heaters");
                     String required = heater ? "thermal" : "carbon";

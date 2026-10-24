@@ -63,198 +63,270 @@ public final class AllTests {
             check(request(client, "PUT", "/beacon", "", "application/json", "{").statusCode() == 400, "Farol rejeita JSON quebrado");
             check(request(client, "PUT", "/beacon", "", "application/json", "{}").statusCode() == 422, "Farol exige signal");
             check(request(client, "PUT", "/beacon", "", "application/json", " ".repeat(4097)).statusCode() == 413, "Farol limita corpo");
-            GameModel game = new GameModel();
-            for (int i = 0; i < 40; i++) game.tick(false, false, false);
-            check(game.grounded && game.y == GameModel.FLOOR - 38, "Gravidade e chão");
-            game.tick(false, false, true); check(game.vy < 0, "Salto");
-            double speed = game.vy; game.tick(false, false, true); check(game.vy > speed, "Sem salto infinito no ar");
-            game.x = GameModel.GATE_X - 35; game.y = 452; game.vy = 0;
-            for (int i = 0; i < 10; i++) game.tick(false, true, false);
-            check(game.x <= GameModel.GATE_X - 28, "Portal bloqueia passagem");
-            game.unlocked = true;
-            for (int i = 0; i < 10; i++) game.tick(false, true, false);
-            check(game.x > GameModel.GATE_X, "Portal liberado");
-            game.x = 740; game.y = 452; game.grounded = true; game.vy = 0;
-            for (int i = 0; i < 43; i++) game.tick(false, true, i == 0);
-            check(game.x > 900 && game.lives == 3, "Buraco é atravessável com salto");
-            game.y = 700; game.tick(false, false, false);
-            check(game.lives == 2 && game.x == GameModel.TERMINAL_X + 20, "Queda e checkpoint");
-            game.x = GameModel.EXIT_X + 10; game.tick(false, false, false);
-            check(game.level == 1 && !game.unlocked, "Avanço reseta portal");
-            while (!game.won) {
-                game.unlocked = true; game.x = GameModel.EXIT_X + 10; game.tick(false, false, false);
+            String[] bodies = {"", "", "{\"material\":\"wood\"}", "", "{\"signal\":\"on\"}", "", "{\"fuel\":\"thermal\"}", "{\"filter\":\"carbon\"}", "", "{\"cell\":\"solar\"}"};
+            for (int i = 0; i < Lesson.ALL.length; i++) {
+                Lesson lesson = Lesson.ALL[i];
+                var response = request(client, lesson.method(), lesson.path(), "Bearer aluno-api", "application/json", bodies[i]);
+                check(lesson.accepts(lesson.method(), lesson.path(), response), "Contrato HTTP " + i);
+                for (int other = 0; other < Lesson.ALL.length; other++) if (other != i)
+                    check(!Lesson.ALL[other].accepts(lesson.method(), lesson.path(), response), "Sem liberação cruzada");
+                String badMethod = lesson.method().equals("GET") ? "POST" : "GET";
+                check(request(client, badMethod, lesson.path(), "Bearer aluno-api", "application/json", bodies[i]).statusCode() == 405, "405 para cada contrato");
             }
-            check(game.won && game.level == 7, "Vitória somente após oito regiões");
-            check(GameModel.WIDTH == 4800, "Comprimento duplicado");
-            for (int region = 0; region < Lesson.ALL.length; region++) {
-                game.restart(); game.level = region; game.load();
-                check(game.platforms.size() == (region < 6 ? 15 : 22), "Plataformas por região");
-                check(game.enemies.size() == (region < 6 ? 11 : region == 6 ? 9 : 12), "Inimigos por região");
-                check(game.collectibles.size() == 18, "Dados nas rotas elevadas");
-                game.enemies.clear();
-                game.x = GameModel.TERMINAL_X; game.y = 452;
-                check(game.nearTerminal(), "Central acessível");
-                // Both gaps can be crossed with the actual fixed-step physics.
-                for (int gap : (region < 6 ? new int[]{780 + region * 40, 3300 + region * 45} : region == 6 ? new int[]{900, 2100, 3300} : new int[]{1000, 2300, 3600})) {
-                    game.x = gap - (region == 6 ? 80 : 40); game.y = region == 7 ? 372 : 452; game.vy = 0; game.grounded = true;
-                    int lives = game.lives;
-                    for (int step = 0; step < 43; step++) game.tick(false, true, step == 0);
-                    check(game.x > gap + (region == 6 ? 100 : 120) && game.lives == lives, "Salto atravessa buraco " + region + " gap=" + gap + " x=" + game.x + " lives=" + game.lives);
+            check(request(client, "GET", "/tides?mode=high", "", "", "").statusCode() == 400, "Maré inválida");
+            check(request(client, "POST", "/reactor", "", "application/json", "{}").statusCode() == 422, "Célula obrigatória");
+            check(request(client, "POST", "/reactor", "", "", "{}").statusCode() == 415, "Reator exige JSON");
+            check(request(client, "POST", "/reactor", "", "application/json", "{").statusCode() == 400, "Reator rejeita JSON inválido");
+            check(request(client, "POST", "/reactor", "", "application/json", " ".repeat(4097)).statusCode() == 413, "Limite do reator");
+            check(request(client, "PUT", "/purifier", "", "application/json", bodies[7]).statusCode() == 401, "Purificador autenticado");
+            String[] answers = {"8", "4", "5", "4", "falso", "2", "2", "3", "2", "2"};
+            java.util.Random zeros = new java.util.Random(0) { @Override public int nextInt(int bound) { return 0; } };
+            for (int kind = 0; kind < 10; kind++) {
+                var challenge = LogicChallenge.create(kind, zeros);
+                check(challenge.accepts(" " + answers[kind] + " "), "Gabarito independente lógica " + kind);
+                check(!challenge.accepts("incorreto") && !challenge.accepts(null), "Lógica rejeita entrada inválida");
+            }
+            check(GameModel.WIDTH == 8640 && GameModel.ROPE_LENGTH == 500, "Dimensões: +80% e corda metade da tela");
+            check(Explorer.values().length == 6 && RegionTheme.ALL.length == 10, "Seis personagens e dez regiões");
+            java.util.Set<String> campaigns = new java.util.HashSet<>(), puzzles = new java.util.HashSet<>();
+            for (int seed = 0; seed < 30; seed++) {
+                GameModel game = new GameModel(seed), replay = new GameModel(seed);
+                check(java.util.Arrays.equals(game.regionOrder(), replay.regionOrder()), "Seed reproduz ordem");
+                campaigns.add(java.util.Arrays.toString(game.regionOrder()));
+                java.util.Set<Integer> regions = new java.util.HashSet<>();
+                java.util.Set<String> apis = new java.util.HashSet<>(), logicKinds = new java.util.HashSet<>();
+                for (int phase = 0; phase < 10; phase++) {
+                    game.level = phase; game.load(); replay.level = phase; replay.load();
+                    regions.add(game.region()); apis.add(game.apiLesson().path()); logicKinds.add(game.logicChallenge().title()); puzzles.add(game.logicChallenge().prompt());
+                    check(game.apiLesson().equals(replay.apiLesson()) && game.logicChallenge().equals(replay.logicChallenge()), "Seed reproduz desafios");
+                    check(game.collectibles.size() == 36 && game.hearts.size() == 4, "Moedas e corações de cada região");
+                    int expected = game.region() < 6 ? 20 : game.region() == 6 ? 17 : 22;
+                    check(game.enemies.size() == expected, "Inimigos aumentados em ao menos 80%");
+                    check(game.collectibles.stream().allMatch(c -> c.x + c.width < GameModel.TERMINAL_X), "Todas as moedas antes das centrais");
+                    check(game.platforms.equals(replay.platforms), "Seed reproduz mapa");
                 }
-                game.load(); game.invincible = 0;
-                var enemy = game.enemies.get(5);
-                game.x = enemy.x; game.y = enemy.bounds().y - 39; game.vy = 3;
-                game.tick(false, false, false);
-                check(!enemy.alive && game.vy < 0, "Pisar elimina patrulheiro");
-                game.load(); game.invincible = 0;
-                enemy = game.enemies.get(5); game.x = enemy.x; game.y = enemy.bounds().y;
-                int lives = game.lives; game.tick(false, false, false);
-                check(game.lives == lives - 1, "Contato lateral causa dano");
-                game.lives = 3;
+                check(regions.size() == 10 && apis.size() == 10 && logicKinds.size() == 10, "Campanha sem repetição de fases ou tipos de desafio");
             }
-            game.restart(); game.lives = 1; game.y = 700; game.tick(false, false, false);
-            check(game.gameOver, "Fim de jogo");
-            game.restart(); check(game.lives == 3 && !game.won && !game.gameOver && game.level == 0, "Reinício");
-            for (int region = 0; region < Lesson.ALL.length; region++) {
-                game.restart(); game.level = region; game.load(); game.enemies.clear();
-                game.coins = 999; // Previous regions' totals cannot unlock this central.
-                game.x = GameModel.TERMINAL_X; game.y = 452;
-                check(!game.canUseTerminal() && game.remainingCoins() == 18, "Central bloqueada na chegada");
-                check(game.collectibles.stream().allMatch(coin -> coin.x + coin.width < GameModel.GATE_X),
-                        "Nenhuma moeda atrás do portal fechado");
-                var route = new java.util.ArrayList<>(game.collectibles);
-                for (int i = 0; i < route.size(); i++) {
-                    var coin = route.get(i);
-                    game.x = coin.x; game.y = coin.y; game.vy = 0;
-                    game.tick(false, false, false); // Collect through real collision handling.
-                    check(game.remainingCoins() == 17 - i, "Coleta individual sem duplicação");
-                    check(game.centralReady() == (i == route.size() - 1), "Só a última moeda ativa a central");
-                }
-                check(!game.unlocked, "Coleta não substitui desafio HTTP");
-                check(!game.canUseTerminal(), "Central exige proximidade");
-                game.x = GameModel.TERMINAL_X; game.y = 452;
-                check(game.canUseTerminal() && game.collectedLevelCoins() == 18, "Central liberada após coleta completa");
-                game.y = 700; game.tick(false, false, false);
-                check(game.remainingCoins() == 0, "Morte preserva moedas da região");
-                game.x = GameModel.TERMINAL_X; game.y = 452;
-                check(game.canUseTerminal(), "Central permanece ativa após respawn");
-                game.unlocked = true; game.x = GameModel.EXIT_X + 10;
-                game.tick(false, false, false);
-                if (region < Lesson.ALL.length - 1) {
-                    check(game.remainingCoins() == 18 && !game.centralReady(), "Nova região exige nova coleta");
-                } else check(game.won && !game.canUseTerminal(), "Vitória encerra interação");
-                game.restart();
-                check(game.coins == 0 && game.collectedLevelCoins() == 0 && !game.centralReady(), "Reinício restaura todas as moedas");
-            }
-            check(Explorer.values().length == 4, "Quatro exploradores disponíveis");
-            for (int i = 0; i < 4; i++) {
-                game.selectExplorer(i); game.restart();
-                check(game.explorer == Explorer.values()[i], "Reiniciar preserva personagem");
-                game.level = 6; game.load();
-                check(game.explorer == Explorer.values()[i] && game.player().width == 28, "Mesma física e seleção entre regiões");
-            }
-            for (int i = 0; i < 2; i++) {
-                String path = i == 0 ? "/heaters" : "/purifier";
-                String method = i == 0 ? "POST" : "PUT";
-                String auth = i == 0 ? "" : "Bearer aluno-api";
-                String body = i == 0 ? "{\"fuel\":\"thermal\"}" : "{\"filter\":\"carbon\"}";
-                var response = request(client, method, path, auth, "application/json", body);
-                check(Lesson.ALL[i + 6].accepts(method, path, response), "Contrato fronteira " + i);
-                check(!Lesson.ALL[5].accepts(method, path, response), "Sem desbloqueio cruzado na fronteira");
-                check(request(client, "GET", path, auth, "", "").statusCode() == 405, "Método incorreto na fronteira");
-                check(request(client, method, path, auth, "", body).statusCode() == 415, "Fronteira exige JSON");
-                check(request(client, method, path, auth, "application/json", "{").statusCode() == 400, "Fronteira rejeita JSON inválido");
-                check(request(client, method, path, auth, "application/json", "{}").statusCode() == 422, "Campo obrigatório na fronteira");
-                check(request(client, method, path, auth, "application/json", " ".repeat(4097)).statusCode() == 413, "Fronteira limita corpo");
-            }
-            check(request(client, "PUT", "/purifier", "", "application/json", "{\"filter\":\"carbon\"}").statusCode() == 401, "Purificador exige credencial");
-            game.restart(); game.level = 6; game.load(); game.enemies.clear();
-            TerrainPlatform lift = (TerrainPlatform)game.platforms.get(5);
-            game.x = lift.x + 40; game.y = lift.y - 38; game.grounded = true;
-            int initialY = lift.y;
+            check(campaigns.size() > 25 && puzzles.size() > 100, "Variedade real de campanhas e parâmetros");
+            GameModel game = new GameModel(123);
+            int[] previousOrder = game.regionOrder(); game.restart();
+            check(!java.util.Arrays.equals(previousOrder, game.regionOrder()), "Nova expedição muda ordem");
+            game.restart(123); game.enemies.clear();
             for (int i = 0; i < 40; i++) game.tick(false, false, false);
-            check(lift.y != initialY && game.y == lift.y - 38 && game.grounded, "Elevador transporta personagem");
-            game.restart(); game.level = 7; game.load(); game.enemies.clear();
-            TerrainPlatform ruin = (TerrainPlatform)game.platforms.get(5);
-            game.x = ruin.x + 40; game.y = ruin.y - 38; game.grounded = true;
-            for (int i = 0; i < 36; i++) game.tick(false, false, false);
-            check(!ruin.active() && !game.grounded, "Sucata cede após aviso");
-            game.x = 70; game.y = 452; game.vy = 0;
-            for (int i = 0; i < 180; i++) game.tick(false, false, false);
-            check(ruin.active() && !ruin.cracking(), "Sucata reaparece para permitir nova tentativa");
-            var scavenger = new GameModel.Enemy(0, 500, 462, 1, GameModel.EnemyKind.SCAVENGER);
-            scavenger.tick(1000); double slow = scavenger.x;
-            scavenger.tick(100); check(scavenger.x - slow > slow, "Sucateiro acelera perto do explorador");
-            var skater = new GameModel.Enemy(0, 1000, 462, 1, GameModel.EnemyKind.SKATER);
-            skater.tick(100); double fast = skater.x;
-            for (int i = 0; i < 60; i++) skater.tick(100);
-            double before = skater.x; skater.tick(100);
-            check(skater.x - before < fast, "Patinador alterna impulso e repouso");
-            // Climb each new three-platform route with actual jump physics.
-            for (int region = 6; region < 8; region++) for (int cluster = 0; cluster < 6; cluster++) for (int delay : new int[]{0, 60, 180}) {
-                game.restart(); game.level = region; game.load(); game.enemies.clear();
-                for (int frame = 0; frame < delay; frame++) game.tick(false, false, false);
-                var first = game.platforms.get(4 + cluster * 3);
-                game.x = first.x - 45;
-                if (region == 6 && game.x >= 2100 && game.x < 2200) game.x = 2060;
-                game.y = 452; game.vy = 0; game.grounded = true;
+            check(game.first.grounded && game.first.y == GameModel.FLOOR - 38, "Chão e gravidade");
+            game.tick(false, false, true); check(game.first.vy < 0, "Salto");
+            double speed = game.first.vy; game.tick(false, false, true); check(game.first.vy > speed, "Sem salto infinito");
+            game.first.x = GameModel.GATE_X - 35; game.first.y = 452; game.first.vy = 0;
+            for (int i = 0; i < 30; i++) game.tick(false, true, false);
+            check(game.first.x <= GameModel.GATE_X - 28, "Portal fechado bloqueia passagem");
+            game.first.x = GameModel.TERMINAL_X; game.first.y = 452;
+            check(!game.canUseTerminal(0), "Moedas bloqueiam API"); game.completeApi(); check(!game.apiSolved(), "Não resolve central bloqueada");
+            game.first.x = GameModel.LOGIC_X;
+            check(!game.submitLogic(game.logicChallenge().answer()), "Moedas bloqueiam lógica");
+            game.collectibles.clear();
+            check(!game.submitLogic("errado") && !game.unlocked(), "Resposta incorreta não abre passagem");
+            check(game.submitLogic(game.logicChallenge().answer()) && !game.unlocked(), "Uma central apenas não basta");
+            game.first.x = GameModel.TERMINAL_X; game.completeApi(); check(game.unlocked(), "Duas centrais abrem passagem");
+            String retained = game.logicChallenge().prompt(); game.first.y = 700; game.tick(false, false, false);
+            check(game.apiSolved() && game.logicSolved() && game.remainingCoins() == 0 && game.logicChallenge().prompt().equals(retained), "Morte mantém coleta, centrais e desafio");
+            check(game.first.x == GameModel.TERMINAL_X - 70, "Checkpoint nas centrais");
+            game.first.x = GameModel.EXIT_X + 1; game.first.y = 452; game.tick(false, false, false);
+            check(game.level == 1 && !game.apiSolved() && !game.logicSolved() && game.remainingCoins() == 36, "Nova fase reinicia requisitos");
+            // Consume all hearts using collision, never re-create them on respawn.
+            game.restart(0); game.enemies.clear();
+            for (var heart : new java.util.ArrayList<>(game.hearts)) {
+                game.first.x = heart.x; game.first.y = heart.y; game.first.vy = 0; game.tick(false, false, false);
+            }
+            check(game.lives == 7 && game.hearts.isEmpty(), "Quatro corações levam energia de três a sete");
+            game.first.y = 700; game.tick(false, false, false);
+            check(game.lives == 6 && game.hearts.isEmpty(), "Corações consumidos não voltam após dano");
+            game.restart(0); game.enemies.clear(); game.lives = 7;
+            var heart = game.hearts.get(0); game.first.x = heart.x; game.first.y = heart.y;
+            game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 4, "No teto, coração permanece disponível");
+            game.lives = 6; game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 3, "Coleta após perder energia");
+            // Traverse every elevated route and every gap under multiple seeds and lift phases.
+            for (int seed = 0; seed < 2; seed++) for (int phase = 0; phase < 10; phase++)
+                for (int block = 0; block < 12; block++) for (int delay : new int[]{0, 90}) {
+                    game.restart(seed); game.level = phase; game.load(); game.enemies.clear();
+                    for (int i = 0; i < delay; i++) game.tick(false, false, false);
+                    int firstIndex = block * 4 + 1;
+                    var lower = game.platforms.get(firstIndex);
+                    game.first.x = lower.x - 45; game.first.y = 452; game.first.vy = 0; game.first.grounded = true;
+                    for (int step = 0; step < 3; step++) {
+                        var target = game.platforms.get(firstIndex + step);
+                        jumpTo(game, target.x + 45);
+                        check(Math.abs(game.first.y + 38 - target.y) < 1, "Plataforma alcançável: " + game.region() + "/" + block + "/" + step);
+                    }
+                    check(game.collectedLevelCoins() == 3, "Todas as moedas da rota alcançáveis");
+                    int gap = lower.x + 500, width = 100 + game.region() % 2 * 20;
+                    game.first.x = gap - 40; game.first.y = 452; game.first.vy = 0; game.first.grounded = true;
+                    int energy = game.lives;
+                    game.tick(false, true, true); for (int i = 0; i < 42; i++) game.tick(false, true, false);
+                    check(game.first.x > gap + width && game.lives == energy, "Fenda atravessável");
+                }
+            // Both explorers climb the generated routes with staggered positions and independent inputs.
+            for (int phase = 0; phase < 10; phase++) for (int block = 0; block < 12; block++) {
+                game.restart(99); game.cooperative = true; game.level = phase; game.load(); game.enemies.clear();
+                var lower = game.platforms.get(block * 4 + 1);
+                game.first.x = lower.x - 45; game.second.x = lower.x - 65;
+                game.first.y = game.second.y = 452; game.first.vy = game.second.vy = 0;
+                game.first.grounded = game.second.grounded = true;
                 for (int step = 0; step < 3; step++) {
-                    var target = game.platforms.get(4 + cluster * 3 + step);
-                    int targetX = target.x + 45;
-                    game.tick(false, true, true);
-                    for (int frame = 0; frame < 65 && !game.grounded; frame++)
-                        game.tick(game.x > targetX + 4, game.x < targetX, false);
-                    check(Math.abs(game.y + 38 - target.y) < 1, "Rota alcançável " + region + "/" + cluster + "/" + step);
+                    var target = game.platforms.get(block * 4 + 1 + step);
+                    int targetOne = target.x + 45, targetTwo = target.x + 65;
+                    game.tick(new GameModel.Input(false, true, true), new GameModel.Input(false, true, true));
+                    for (int frame = 0; frame < 65 && (!game.first.grounded || !game.second.grounded); frame++) {
+                        game.tick(new GameModel.Input(game.first.x > targetOne + 4, game.first.x < targetOne, false),
+                                new GameModel.Input(game.second.x > targetTwo + 4, game.second.x < targetTwo, false));
+                        check(game.ropeDistance() <= 500.001, "Corda durante salto da dupla");
+                    }
+                    check(Math.abs(game.first.y + 38 - target.y) < 1 && Math.abs(game.second.y + 38 - target.y) < 1,
+                            "Rota cooperativa alcançável " + game.region() + "/" + block + "/" + step);
                 }
-                check(game.collectedLevelCoins() == 3, "Todas as moedas da rota são alcançáveis");
+                check(game.collectedLevelCoins() == 3, "Moedas compartilhadas sem contagem dupla");
             }
-            SwingUtilities.invokeAndWait(() -> {
-                try {
-                    GamePanel panel = new GamePanel(client); panel.setSize(1000, 600);
-                    var field = GamePanel.class.getDeclaredField("model"); field.setAccessible(true);
-                    GameModel selected = (GameModel)field.get(panel);
-                    var choosing = GamePanel.class.getDeclaredField("choosing"); choosing.setAccessible(true);
-                    var started = GamePanel.class.getDeclaredField("started"); started.setAccessible(true);
-                    check(choosing.getBoolean(panel) && !started.getBoolean(panel), "Inicia na seleção");
-                    for (int i = 0; i < 4; i++) {
-                        press(panel, java.awt.event.KeyEvent.VK_1 + i);
-                        check(selected.explorer == Explorer.values()[i], "Tecla seleciona avatar " + i);
-                    }
-                    press(panel, java.awt.event.KeyEvent.VK_RIGHT);
-                    check(selected.explorer == Explorer.NEY, "Seleção circular com setas");
-                    press(panel, java.awt.event.KeyEvent.VK_ENTER);
-                    check(started.getBoolean(panel) && !choosing.getBoolean(panel), "Enter inicia expedição");
-                    press(panel, java.awt.event.KeyEvent.VK_C);
-                    check(!choosing.getBoolean(panel), "Não troca personagem em movimento");
-                    press(panel, java.awt.event.KeyEvent.VK_P); press(panel, java.awt.event.KeyEvent.VK_C);
-                    check(choosing.getBoolean(panel), "Pausa permite troca");
-                    var click = new java.awt.event.MouseEvent(panel, java.awt.event.MouseEvent.MOUSE_PRESSED, 0, 0, 800, 300, 1, false);
-                    for (var listener : panel.getMouseListeners()) listener.mousePressed(click);
-                    check(selected.explorer == Explorer.DILA, "Clique seleciona Dila");
-                    press(panel, java.awt.event.KeyEvent.VK_ENTER);
-                    selected.gameOver = true; press(panel, java.awt.event.KeyEvent.VK_R);
-                    check(selected.explorer == Explorer.DILA && !selected.gameOver, "Reinício mantém avatar escolhido");
-                } catch (Exception ex) { throw new RuntimeException(ex); }
-            });
-            // Renderização Swing headless para verificar layout da tela inicial.
-            if (args.length > 0 && args[0].equals("--render")) SwingUtilities.invokeAndWait(() -> {
-                try {
-                    GamePanel panel = new GamePanel(client); panel.setSize(1000, 600);
-                    BufferedImage image = new BufferedImage(1000, 600, BufferedImage.TYPE_INT_RGB);
-                    var graphics = image.createGraphics(); panel.paint(graphics); graphics.dispose();
-                    ImageIO.write(image, "png", new File("build/preview.png"));
-                    var field = GamePanel.class.getDeclaredField("model"); field.setAccessible(true);
-                    var started = GamePanel.class.getDeclaredField("started"); started.setAccessible(true); started.set(panel, true);
-                    var choosing = GamePanel.class.getDeclaredField("choosing"); choosing.setAccessible(true); choosing.set(panel, false);
-                    GameModel rendered = (GameModel)field.get(panel);
-                    for (int region = 0; region < Lesson.ALL.length; region++) {
-                        rendered.level = region; rendered.load(); rendered.x = region >= 6 ? 400 : GameModel.TERMINAL_X; rendered.y = 452;
-                        graphics = image.createGraphics(); panel.paint(graphics); graphics.dispose();
-                        ImageIO.write(image, "png", new File("build/region-" + region + ".png"));
-                    }
-                } catch (Exception ex) { throw new RuntimeException(ex); }
-            });
+            game.cooperative = false;
+            // Co-op physics: independent inputs, strict Euclidean tether, walls, camera and recovery.
+            game.restart(41); game.cooperative = true; game.enemies.clear();
+            for (int i = 0; i < 40; i++) game.tick(GameModel.Input.NONE, GameModel.Input.NONE);
+            double secondX = game.second.x;
+            game.tick(new GameModel.Input(false, true, false), new GameModel.Input(false, false, true));
+            check(game.first.x > 70 && game.second.x == secondX && game.second.vy < 0, "Controles simultâneos independentes");
+            game.first.x = 8100; game.second.x = 7600; game.first.y = game.second.y = 452;
+            game.first.vy = game.second.vy = 0;
+            for (int i = 0; i < 100; i++) {
+                game.tick(new GameModel.Input(false, true, i % 30 == 0), GameModel.Input.NONE);
+                check(game.ropeDistance() <= 500.001, "Limite real de comprimento da corda");
+                double camera = game.camera();
+                check(game.first.x >= camera && game.second.x >= camera && game.first.x + 28 <= camera + 1000 && game.second.x + 28 <= camera + 1000, "Ambos na tela");
+            }
+            game.first.x = GameModel.GATE_X - 29; game.second.x = game.first.x - 450;
+            game.first.y = game.second.y = 452; game.first.vy = game.second.vy = 0;
+            for (int i = 0; i < 30; i++) game.tick(new GameModel.Input(false, true, false), new GameModel.Input(true, false, false));
+            check(game.first.x <= GameModel.GATE_X - 28 && game.ropeDistance() <= 500.001, "Corda não atravessa portal");
+            game.collectibles.clear(); game.first.x = GameModel.TERMINAL_X; game.second.x = GameModel.TERMINAL_X - 400;
+            check(!game.canUseTerminal(0), "Dupla precisa estar junto na central");
+            game.second.x = GameModel.TERMINAL_X - 50; game.completeApi();
+            check(game.apiSolved() && !game.unlocked(), "API compartilhada, lógica ainda pendente");
+            game.first.x = GameModel.LOGIC_X; game.second.x = GameModel.LOGIC_X - 50;
+            check(game.submitLogic(game.logicChallenge().answer()), "Dupla completa lógica");
+            game.first.x = GameModel.EXIT_X + 1; game.second.x = GameModel.EXIT_X - 50; game.tick(false, false, false);
+            check(game.level == 0, "Saída aguarda segundo jogador");
+            game.second.x = GameModel.EXIT_X + 1; game.tick(false, false, false); check(game.level == 1, "Avanço conjunto");
+            game.enemies.clear(); game.first.x = game.second.x = 100; game.first.y = game.second.y = 700;
+            int energy = game.lives; game.tick(false, false, false);
+            check(game.lives == energy - 1 && game.ropeDistance() <= 500, "Queda conjunta custa apenas uma energia");
+            check(game.first.y == 420 && game.second.y == 420, "Respawn recupera os dois");
+            game.restart(0); game.enemies.clear(); game.cooperative = true;
+            heart = game.hearts.get(0); game.first.x = heart.x - 30; game.second.x = heart.x; game.first.y = game.second.y = heart.y;
+            game.tick(false, false, false); check(game.lives == 4 && game.hearts.size() == 3, "P2 coleta coração único para equipe");
+            game.restart(0); game.cooperative = true; game.invincible = 0;
+            var enemy = game.enemies.get(0);
+            game.first.x = enemy.x - 40; game.first.y = 452;
+            game.second.x = enemy.x; game.second.y = enemy.bounds().y - 39; game.second.vy = 3;
+            game.tick(false, false, false);
+            check(!enemy.alive && game.second.vy < 0, "P2 derrota inimigo por cima");
+            game.load(); game.invincible = 0; enemy = game.enemies.get(0);
+            game.first.x = enemy.x; game.second.x = enemy.x; game.first.y = game.second.y = 452;
+            energy = game.lives; game.tick(false, false, false);
+            check(game.lives == energy - 1 && game.invincible > 0, "Contato simultâneo não duplica dano");
+            // Shared platforms advance once per frame even with two passengers.
+            game.restart(0); game.cooperative = true;
+            for (int phase = 0; phase < 10; phase++) if (game.regionOrder()[phase] == 6) { game.level = phase; break; }
+            game.load(); game.enemies.clear();
+            TerrainPlatform lift = (TerrainPlatform)game.platforms.get(2);
+            game.first.x = lift.x + 15; game.second.x = lift.x + 65;
+            game.first.y = game.second.y = lift.y - 38; game.first.grounded = game.second.grounded = true;
+            for (int i = 0; i < 40; i++) game.tick(false, false, false);
+            check(game.first.y == lift.y - 38 && game.second.y == lift.y - 38, "Elevador carrega os dois");
+            for (int phase = 0; phase < 10; phase++) if (game.regionOrder()[phase] == 7) { game.level = phase; break; }
+            game.load(); game.enemies.clear();
+            TerrainPlatform fragile = (TerrainPlatform)game.platforms.get(2);
+            game.first.x = fragile.x + 15; game.second.x = fragile.x + 65;
+            game.first.y = game.second.y = fragile.y - 38; game.first.grounded = game.second.grounded = true;
+            for (int i = 0; i < 35; i++) game.tick(false, false, false);
+            check(fragile.active() && fragile.cracking(), "Dois passageiros não aceleram rachadura");
+            game.tick(false, false, false); check(!fragile.active(), "Placa cede no passo 36");
+            game.first.x = 70; game.second.x = 115; game.first.y = game.second.y = 452;
+            game.first.vy = game.second.vy = 0;
+            for (int i = 0; i < 180; i++) game.tick(false, false, false);
+            check(fragile.active(), "Placa retorna após 180 passos");
+            // All ten transitions require both central results, including the final region.
+            game.restart(5); game.cooperative = false;
+            for (int phase = 0; phase < 10; phase++) {
+                game.collectibles.clear(); game.enemies.clear(); game.first.x = GameModel.TERMINAL_X; game.first.y = 452;
+                game.completeApi(); game.first.x = GameModel.LOGIC_X; check(game.submitLogic(game.logicChallenge().answer()), "Lógica de cada fase");
+                game.first.x = GameModel.EXIT_X + 1; game.tick(false, false, false);
+                check(game.won == (phase == 9), "Vitória somente após dez fases");
+            }
+            game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 4, "Reinício integral");
+            testUI(client, args.length > 0 && args[0].equals("--render"));
         }
-        System.out.println("OK: " + checks + " verificações (HTTP, JSON, física e progressão).");
+        System.out.println("OK: " + checks + " verificações (HTTP, lógica, mapas, corações, cooperação e seleção).");
+    }
+    private static void jumpTo(GameModel game, int targetX) {
+        game.tick(false, true, true);
+        for (int frame = 0; frame < 65 && !game.first.grounded; frame++)
+            game.tick(game.first.x > targetX + 4, game.first.x < targetX, false);
+    }
+    private static void testUI(ApiClient client, boolean render) throws Exception {
+        SwingUtilities.invokeAndWait(() -> {
+            try {
+                GamePanel panel = new GamePanel(client); panel.setSize(1000, 600);
+                var modelField = GamePanel.class.getDeclaredField("model"); modelField.setAccessible(true);
+                GameModel model = (GameModel)modelField.get(panel);
+                var choosing = GamePanel.class.getDeclaredField("choosing"); choosing.setAccessible(true);
+                var started = GamePanel.class.getDeclaredField("started"); started.setAccessible(true);
+                check(choosing.getBoolean(panel), "Seleção inicial");
+                press(panel, java.awt.event.KeyEvent.VK_M); check(model.cooperative, "M ativa dupla");
+                for (int i = 0; i < 6; i++) { press(panel, java.awt.event.KeyEvent.VK_1 + i); check(model.first.explorer == Explorer.values()[i], "Seleção de seis avatares"); }
+                press(panel, java.awt.event.KeyEvent.VK_TAB); press(panel, java.awt.event.KeyEvent.VK_5);
+                check(model.second.explorer == Explorer.NITA && model.first.explorer == Explorer.VIVI, "Escolhas independentes");
+                if (render) render(panel, "build/selection-duo.png");
+                press(panel, java.awt.event.KeyEvent.VK_ENTER); check(started.getBoolean(panel) && !choosing.getBoolean(panel), "Confirma dupla");
+                boolean mode = model.cooperative; press(panel, java.awt.event.KeyEvent.VK_P); press(panel, java.awt.event.KeyEvent.VK_C);
+                press(panel, java.awt.event.KeyEvent.VK_M); check(model.cooperative == mode, "Não muda modo no meio da expedição");
+                press(panel, java.awt.event.KeyEvent.VK_ENTER);
+                model.enemies.clear();
+                var timerField = GamePanel.class.getDeclaredField("timer"); timerField.setAccessible(true);
+                var accumulator = GamePanel.class.getDeclaredField("accumulator"); accumulator.setAccessible(true);
+                var previous = GamePanel.class.getDeclaredField("previous"); previous.setAccessible(true);
+                var keysField = GamePanel.class.getDeclaredField("keys"); keysField.setAccessible(true);
+                @SuppressWarnings("unchecked") var keys = (java.util.Set<Integer>)keysField.get(panel);
+                model.first.grounded = model.second.grounded = true; model.first.y = model.second.y = 452;
+                double firstX = model.first.x, secondX = model.second.x;
+                keys.add(java.awt.event.KeyEvent.VK_RIGHT); keys.add(java.awt.event.KeyEvent.VK_A);
+                accumulator.setDouble(panel, 1.0 / 60); previous.setLong(panel, System.nanoTime());
+                ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick")); keys.clear();
+                check(model.first.x > firstX && model.second.x < secondX, "Teclas separadas movem os dois simultaneamente");
+                model.first.grounded = model.second.grounded = true;
+                model.first.y = model.second.y = 452; model.first.vy = model.second.vy = 0;
+                press(panel, java.awt.event.KeyEvent.VK_W);
+                accumulator.setDouble(panel, 1.0 / 60); previous.setLong(panel, System.nanoTime());
+                ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick"));
+                check(model.second.vy < 0 && model.first.vy == 0, "W salta apenas P2");
+                press(panel, java.awt.event.KeyEvent.VK_UP);
+                accumulator.setDouble(panel, 1.0 / 60); previous.setLong(panel, System.nanoTime());
+                ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick"));
+                check(model.first.vy < 0, "Seta para cima salta P1");
+                press(panel, java.awt.event.KeyEvent.VK_P); long seed = model.seed(); press(panel, java.awt.event.KeyEvent.VK_N);
+                check(model.seed() != seed && choosing.getBoolean(panel) && !started.getBoolean(panel), "N inicia novo sorteio");
+                if (render) {
+                    press(panel, java.awt.event.KeyEvent.VK_ENTER);
+                    model.restart(42);
+                    for (int phase = 0; phase < 10; phase++) {
+                        model.level = phase; model.load(); model.first.x = 500; model.second.x = 750;
+                        render(panel, "build/theme-" + model.region() + ".png");
+                    }
+                    model.first.x = GameModel.TERMINAL_X; model.second.x = GameModel.LOGIC_X;
+                    model.first.y = model.second.y = 452; model.collectibles.clear();
+                    render(panel, "build/centrals-duo.png");
+                }
+            } catch (Exception ex) { throw new RuntimeException(ex); }
+        });
+    }
+    private static void render(GamePanel panel, String path) throws Exception {
+        BufferedImage image = new BufferedImage(1000, 600, BufferedImage.TYPE_INT_RGB);
+        var g = image.createGraphics(); panel.paint(g); g.dispose(); ImageIO.write(image, "png", new File(path));
     }
 }

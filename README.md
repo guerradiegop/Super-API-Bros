@@ -1,96 +1,95 @@
-# Super API Bros
+# Super API Bros — Rede dos Horizontes
 
-Jogo de plataforma 2D em **Java 17**, em português, para aprender consumo de APIs jogando e programando. Explore oito fases, pule sobre bugs, colete dados e monte requisições HTTP nos terminais para liberar os portais.
+Expedição de plataforma em **Java 17**, em português, com dez regiões, seis exploradores pixelados e modos solo ou cooperativo local. Reúna moedas, restaure centrais de comunicação com **HTTP real** e resolva algoritmos para reconectar os horizontes.
 
-Visual e personagens próprios, inspirados no gênero de plataformas clássicas. Não utiliza imagens, músicas, personagens ou marcas da Nintendo como assets.
+## Executar
 
-## Jogar
-
-Requer **Java 17 ou superior com suporte a desktop** (Windows, Linux ou macOS). Baixe o repositório em **Code → Download ZIP**, extraia e execute:
+Requer Java 17+ com desktop Windows, Linux ou macOS. Baixe o repositório, extraia e execute:
 
 ```sh
 java -jar dist/super-api-bros.jar
 ```
 
-O JAR executável já está incluído. Também há `run.bat` (Windows, duplo clique) e `sh run.sh` (Linux/macOS). O jogo abre uma janela; não funciona como jogo gráfico em terminal headless/SSH. Caso `java` não seja encontrado, instale um JDK 17+ e configure o PATH. Em máquinas escolares, confirme que aplicações Java podem abrir uma porta local.
+Também há `run.bat` e `sh run.sh`. O JAR está incluído. Após editar fontes, recompile: os scripts `run` só compilam quando o JAR não existe. Não exige internet, Maven, cadastro ou chave externa. O servidor HTTP é local (`127.0.0.1`, porta livre), inicia com a aplicação e encerra com ela. Os dados não persistem entre execuções.
 
-**Não exige internet, Maven, Gradle, cadastro ou chave de API.** Um servidor HTTP real inicia em `127.0.0.1`, numa porta livre, e encerra com o jogo. O endereço aparece no terminal e no laboratório. Os dados são didáticos e não persistem entre execuções.
+## Controles e seleção
 
-| Controle | Ação |
-|---|---|
-| 1–4 ou A/D ou ←/→, na seleção | Escolher personagem (também por clique) |
-| Enter | Confirmar personagem e iniciar/retomar |
-| C, na pausa ou após o encerramento | Abrir seleção de personagens |
-| A/D ou setas esquerda/direita | Mover |
-| Espaço, W ou seta para cima | Pular |
-| E, perto do terminal `{ }` | Conectar à central HTTP |
-| P | Pausar/continuar; o jogo pausa ao perder foco |
-| R, após vitória ou derrota | Reiniciar |
-
-Colete todas as 18 moedas da região para ativar a central no fim do percurso. O HUD mostra a coleta da região atual; perto da central inativa, uma mensagem informa quantas moedas faltam. Perder uma vida preserva as moedas coletadas; avançar exige uma nova coleta e reiniciar zera tudo. Todas as moedas ficam antes do portal fechado. Depois, vá até o terminal, leia o contrato, preencha os campos e envie a requisição. O painel mostra status, cabeçalhos, duração e corpo da resposta. Interprete o campo JSON solicitado para liberar a passagem. Alcance a bandeira para avançar. São três vidas; resolver o laboratório ativa um checkpoint. Erros HTTP não custam vidas e podem ser repetidos livremente.
-
-## O que os alunos aprendem
-
-| Fase | Prática | Conceitos |
+| Ação | Solo | Dupla no mesmo teclado |
 |---|---|---|
-| Jardim dos endpoints | `GET /world/1` | Cliente, servidor, endpoint, contrato, JSON, 200, 404, 405 |
-| Fortaleza das chaves | `GET /keys?color=blue` | Query, cabeçalhos, token didático, 400 e 401 |
-| Oficina das pontes | `POST /bridges` | Corpo JSON, Content-Type, 201, 415 e 422 |
-| Cavernas de cristal | `GET /weather?region=crystal` | Consulta de sensores e filtro por região |
-| Deserto dos sinais | `PUT /beacon` | Substituição de configuração e idempotência |
-| Cidade suspensa | `DELETE /interference` | Remoção autenticada e interpretação do resultado |
-| Cordilheira branca | `POST /heaters` | Criação de aquecedor, JSON e 201 |
-| Horizonte das cinzas | `PUT /purifier` | Manutenção autenticada, JSON e validação de campos |
+| Mover | A/D ou ←/→ | P1: ←/→; P2: A/D |
+| Saltar | W, ↑ ou Espaço | P1: ↑; P2: W |
+| Conectar à central | E ou Enter | Enter ou E, com os dois próximos |
+| Pausar/continuar | P | P, pausa ambos |
+| Escolher personagens | C na pausa ou no encerramento | C na pausa ou no encerramento |
+| Nova expedição | N na pausa; R no encerramento | Igual |
 
-Uma API é uma interface que permite a programas usar funcionalidades e dados de outros componentes. APIs podem servir para consultar endereços, integrar pagamentos ou acessar informações meteorológicas. Este projeto ensina **APIs HTTP**; nem toda API usa HTTP ou JSON.
+Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só pode mudar antes de iniciar uma expedição. As setas escolhem P1; A/D escolhem P2 na dupla. **Tab** alterna o jogador selecionado para os atalhos **1–6** ou cliques nos retratos. **Enter** confirma. Esc fecha a seleção aberta durante a pausa, mantendo a pausa. Todos têm a mesma física e colisões; aparência não concede vantagens.
 
-O jogo realmente faz `HttpClient.sendAsync` para um `HttpServer`: não simula respostas no cliente. A interface não bloqueia enquanto espera a rede. O cliente verifica o status e interpreta o JSON antes de liberar a missão. O servidor expõe apenas o endereço local. Não há conexão com APIs públicas nesta versão: a atividade de extensão está no guia do professor.
+| Explorador | Referência visual |
+|---|---|
+| Ney | Neymar: cabelo claro e camisa amarela |
+| Leo | Messi: barba e camisa listrada |
+| Cris | Cristiano Ronaldo: cabelo escuro e camisa vermelha |
+| Dila | Dilma: cabelo curto e conjunto vermelho |
+| Nita | Anitta: cabelo longo escuro, roupa roxa e brincos |
+| Vivi | Virginia: cabelo longo loiro e roupa rosa |
+
+São caricaturas originais desenhadas em código, sem fotografias ou assets externos.
+
+## Campanha e regras
+
+* **10 fases de 8.640 unidades**: aumento exato de **80%** sobre as 4.800 anteriores. Todas as rotas foram reconstruídas em 12 blocos com variantes limitadas pela física de salto, 36 plataformas elevadas e 12 fendas.
+* **36 moedas por fase**, acessíveis antes das centrais. Todas devem ser coletadas para acessar os desafios; a contagem é compartilhada na dupla.
+* **Duas centrais e dois desafios por fase:** uma de API (requisição HTTP e interpretação do JSON) e outra de lógica computacional. Podem ser resolvidas em qualquer ordem. O portal exige ambas concluídas; cancelar, falhar ou acertar apenas uma não abre a passagem.
+* **Energia inicial 3, máximo 7.** Há quatro corações por fase. Cada um concede +1, é removido ao coletar e não reaparece após perder energia. No máximo de energia, o coração permanece para uma coleta posterior. Corações e moedas são compartilhados na dupla.
+* Contato lateral com inimigos ou queda custa uma energia. Na dupla, o dano é compartilhado e os dois reaparecem juntos com proteção temporária, evitando cobrança dupla no mesmo passo. Saltar sobre inimigos os derrota.
+* A primeira central concluída ativa o checkpoint no final da rota. Moedas, corações consumidos e centrais resolvidas permanecem após dano; plataformas móveis/frágeis retornam ao estado inicial. Uma fase nova restaura os itens e os dois desafios.
+* A corda limita a **distância entre os personagens a 500 unidades**, metade da largura visível de 1.000 unidades (não metade do mapa). Movimento que esticaria a corda é limitado; os parceiros precisam avançar juntos. A câmera acompanha o ponto médio. Ambos devem se aproximar da central e atravessar a saída.
+
+## Regiões e inimigos
+
+| Região | Plataformas e ambiente | Inimigos por fase |
+|---|---|---:|
+| Jardim dos endpoints | Copa das árvores e escadas alternadas | 20 |
+| Fortaleza das chaves | Muralhas e rotas elevadas | 20 |
+| Oficina das pontes | Andaimes e placas frágeis | 20 |
+| Cavernas de cristal | Cristais e escadas verticais | 20 |
+| Deserto dos sinais | Dunas e saltos entre patamares | 20 |
+| Cidade suspensa | Torres e elevadores alternados | 20 |
+| Cordilheira branca | Neve e elevadores de gelo | 17 |
+| Horizonte das cinzas | Ruínas e sucata que cede | 22 |
+| Arquipélago das marés | Ilhas, ondas e elevadores | 22 |
+| Reator da aurora | Reatores luminosos e placas instáveis | 22 |
+
+Nas oito regiões existentes, as populações correspondem a `ceil(população anterior × 1,8)`: 11→20, 9→17 e 12→22. As duas novas têm 22 inimigos cada. Há patrulheiros, saltadores, drones, patinadores, espectros de gelo e sucateiros que aceleram por proximidade.
+
+Placas frágeis avisam por rachaduras, cedem após 36 passos (0,6 s) e reaparecem após 180 passos (3 s). Elevadores levam as moedas junto com a plataforma. Esses mecanismos permitem novas tentativas sem tornar a coleta impossível.
+
+## Sorteio e desafios
+
+Cada nova expedição sorteia, sem repetição, a ordem das dez regiões, a distribuição dos dez protocolos HTTP e os dez tipos de lógica. Os parâmetros dos exercícios de lógica e as variantes das plataformas também mudam. A ordem da nova expedição é diferente da anterior. Perder energia, pausar ou trocar aparência **não** sorteia novamente.
+
+Os protocolos HTTP incluem consulta de rota, chave autenticada, criação de ponte, clima, farol, remoção de interferência, aquecedor, purificador, marés e reator. Não ficam vinculados a uma região específica. As respostas são obtidas por `HttpClient.sendAsync` e `HttpServer`, com validação de método, caminho, status e JSON.
+
+A central de lógica usa acumuladores, condições, índices de listas, binário, expressões booleanas, filas, pilhas, laços, troca de variáveis e busca. Não executa código fornecido pelo usuário. Resposta errada apresenta uma dica e não custa energia.
 
 ## Compilar e testar
 
-Com **JDK 17+** (`java`, `javac` e `jar` no PATH):
+Com JDK 17+ (`java`, `javac`, `jar`):
 
 ```sh
-# Linux/macOS
 sh build.sh test
 sh run.sh
 ```
 
-```bat
-rem Windows
-build.bat test
-run.bat
-```
+No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os testes verificam HTTP real, lógica, reprodutibilidade do sorteio, rotas em diferentes posições dos elevadores, cooperação, corda, moedas, corações, checkpoints, progressão e controles. `AllTests --render` gera capturas headless em `build/` para inspeção visual. A automação do GitHub compila e testa em Windows, Linux e macOS.
 
-O build gera `dist/super-api-bros.jar`. Execute o build novamente após editar o código; `run` só compila automaticamente quando o JAR ainda não existe. Os testes independem de interface gráfica e internet; validam HTTP real, JSON, bloqueio de URLs externas, salto, colisão, checkpoint, avanço e vitória.
+## Organização
 
-## Estudar o código
+* `GameModel`: estado da campanha, geração limitada dos mapas, física, itens e cooperação.
+* `GamePanel`, `Explorer`, `RegionTheme`, `TerrainPlatform`: interface, avatares e desenho procedural.
+* `Lesson`, `AcademyServer`, `ApiClient`, `LabDialog`: contratos e integração HTTP.
+* `LogicChallenge`, `LogicDialog`: geração e interface de raciocínio computacional.
+* `Json`: parser restrito a objetos com valores string, não um parser JSON genérico.
 
-* `ApiClient.java`: constrói e envia as requisições; ponto de partida dos exercícios.
-* `AcademyServer.java`: atende requisições, valida entradas e responde em JSON.
-* `Lesson.java`: contratos, perguntas e validação das missões.
-* `LabDialog.java`: editor HTTP e inspeção das respostas.
-* `GameModel.java`: movimento, colisões, vidas e progressão, sem dependência de janela.
-* `GamePanel.java`: desenho procedural, seleção por teclado/mouse e controles.
-* `Explorer.java`: quatro avatares pixelados originais desenhados em código.
-* `TerrainPlatform.java`: elevadores de gelo e plataformas de sucata recuperáveis.
-* `Json.java`: parser **limitado a objetos de strings**, suficiente para este contrato; não é um parser JSON genérico.
-
-Veja [o guia de aula e exercícios](docs/GUIA-PROFESSOR.md) e [o contrato completo](docs/API.md). A automação em `.github/workflows/build.yml` compila e testa nos três sistemas e disponibiliza um JAR nos artifacts. O JAR versionado deve ser regenerado junto com alterações de código.
-
-## Limites desta versão
-
-As oito regiões têm 4.800 unidades de extensão cada e 18 moedas. As seis primeiras mantêm 12 plataformas elevadas e 11 inimigos. A neve tem 18 plataformas elevadas e 9 inimigos; as ruínas têm 18 plataformas elevadas e 12 inimigos. Floresta, fortaleza, oficina, cavernas de cristal, deserto e cidade suspensa usam paletas e silhuetas próprias com paralaxe. As posições dos buracos e escadas variam por região. Patrulheiros caminham no chão e em plataformas; saltadores pulam e drones oscilam no ar. Todos podem ser vencidos por um salto sobre o topo; contato lateral causa dano.
-
-A interface se apresenta como **Rede dos Horizontes**: uma expedição para restabelecer centrais isoladas. Terminais, protocolos e respostas HTTP fazem parte da narrativa. Os controles e contratos continuam explícitos para manter a experiência acessível.
-
-PUT e DELETE, como POST, são demonstrações sem persistência: repetir a mesma requisição retorna a mesma confirmação. A partida não salva em disco. POST demonstra criação e retorna `201` e `Location`, mas não mantém um cadastro de pontes nem implementa GET no endereço de Location. A credencial `aluno-api` é pública e exclusivamente didática. Para uma API de produção, use autenticação real, HTTPS e uma biblioteca JSON completa.
-
-## Exploradores e novas fronteiras
-
-A abertura oferece **Ney**, **Leo**, **Cris** e **Dila**, caricaturas pixeladas originais que remetem, respectivamente, a Neymar, Messi, Cristiano Ronaldo e Dilma. Cabelo, barba, roupa e acessórios distinguem os personagens; não há fotografias ou sprites externos. A seleção é visual, sem alterar habilidades ou colisões, e permanece ao avançar ou reiniciar. Na pausa (`P`), use `C` para escolher novamente e Enter para retomar; Esc cancela a seleção mantendo a pausa.
-
-* **Cordilheira branca:** neve, montanhas e pinheiros, três fendas, escadas de gelo em três alturas e seis elevadores verticais. Patinadores alternam impulsos rápidos e lentos; espectros de gelo oscilam verticalmente. O terminal solicita a ativação de um aquecedor.
-* **Horizonte das cinzas:** prédios destruídos, fumaça e sucata, três fendas e rotas de subida e descida. Seis placas racham ao receber peso, cedem após 36 passos (0,6 s) e retornam após 180 passos (3 s). Sucateiros no chão e nas plataformas aceleram quando o explorador chega perto. O terminal exige reconfigurar um purificador com credencial.
-
-As moedas acompanham os elevadores. As placas reaparecem e as plataformas especiais voltam ao estado inicial após perder uma vida, sem desfazer a coleta. A central continua exigindo todas as 18 moedas; a passagem só abre após resolver o contrato HTTP. Os endpoints novos são demonstrações sem persistência, como os anteriores.
+Veja [o contrato completo](docs/API.md) e [o guia do professor](docs/GUIA-PROFESSOR.md). A credencial pública `aluno-api` serve apenas à demonstração. POST/PUT/DELETE retornam confirmações sem persistência; os recursos indicados em Location não implementam GET. Não há salvamento da campanha em disco. A aplicação requer ambiente gráfico, não terminal headless/SSH.

@@ -10,8 +10,8 @@ public final class GamePanel extends JPanel {
     private final GameModel model = new GameModel();
     private final ApiClient api;
     private final Set<Integer> keys = new HashSet<>();
-    private boolean started, paused, labOpen, jumpQueued;
-    private boolean choosing = true;
+    private boolean started, paused, labOpen, choosing = true, jumpOne, jumpTwo;
+    private int selectionPlayer;
     private final Timer timer;
     private long previous = System.nanoTime();
     private double accumulator;
@@ -20,78 +20,92 @@ public final class GamePanel extends JPanel {
         setPreferredSize(new Dimension(1000, 600)); setFocusable(true);
         addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent event) {
-                int key = event.getKeyCode();
-                boolean fresh = keys.add(key);
-                if (!fresh) return;
+                int key = event.getKeyCode(); if (!keys.add(key)) return;
                 if (key == KeyEvent.VK_C && !labOpen && (!started || paused || model.won || model.gameOver)) {
-                    choosing = true; keys.clear(); jumpQueued = false; repaint(); return;
+                    choosing = true; clearInput(); repaint(); return;
                 }
                 if (choosing) {
-                    if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_4) model.selectExplorer(key - KeyEvent.VK_1);
-                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_A) model.selectExplorer(model.explorer.ordinal() - 1);
-                    if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) model.selectExplorer(model.explorer.ordinal() + 1);
+                    if (key == KeyEvent.VK_M && (!started || model.won || model.gameOver)) toggleMode();
+                    if (key == KeyEvent.VK_TAB && model.cooperative) selectionPlayer = 1 - selectionPlayer;
+                    if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_6) model.selectExplorer(selectionPlayer, key - KeyEvent.VK_1);
+                    if (key == KeyEvent.VK_LEFT) model.selectExplorer(0, model.first.explorer.ordinal() - 1);
+                    if (key == KeyEvent.VK_RIGHT) model.selectExplorer(0, model.first.explorer.ordinal() + 1);
+                    if (key == KeyEvent.VK_A) model.selectExplorer(model.cooperative ? 1 : 0,
+                            (model.cooperative ? model.second : model.first).explorer.ordinal() - 1);
+                    if (key == KeyEvent.VK_D) model.selectExplorer(model.cooperative ? 1 : 0,
+                            (model.cooperative ? model.second : model.first).explorer.ordinal() + 1);
                     if (key == KeyEvent.VK_ENTER) confirmExplorer();
                     if (key == KeyEvent.VK_ESCAPE && started) choosing = false;
                     repaint(); return;
                 }
-                if (key == KeyEvent.VK_SPACE || key == KeyEvent.VK_UP || key == KeyEvent.VK_W) jumpQueued = true;
-                if (key == KeyEvent.VK_P && started && !labOpen) paused = !paused;
-                if (key == KeyEvent.VK_R && (model.won || model.gameOver)) { model.restart(); started = true; paused = false; }
-                if (key == KeyEvent.VK_E && started && !paused && !labOpen && !model.gameOver && !model.won && model.canUseTerminal()) openLab();
+                if (key == KeyEvent.VK_UP || !model.cooperative && (key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE)) jumpOne = true;
+                if (model.cooperative && key == KeyEvent.VK_W) jumpTwo = true;
+                if (key == KeyEvent.VK_P && started && !labOpen) { paused = !paused; clearInput(); }
+                if (key == KeyEvent.VK_N && paused && !labOpen) { model.restart(); started = false; choosing = true; clearInput(); }
+                if (key == KeyEvent.VK_R && (model.won || model.gameOver)) { model.restart(); started = true; paused = false; clearInput(); }
+                if ((key == KeyEvent.VK_E || key == KeyEvent.VK_ENTER) && started && !paused && !labOpen) openCentral();
             }
             @Override public void keyReleased(KeyEvent event) { keys.remove(event.getKeyCode()); }
         });
+        setFocusTraversalKeysEnabled(false);
         addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent event) {
                 if (!choosing) return;
-                int mx = event.getX() * 1000 / Math.max(1, getWidth());
-                int my = event.getY() * 600 / Math.max(1, getHeight());
+                int mx = event.getX() * 1000 / Math.max(1, getWidth()), my = event.getY() * 600 / Math.max(1, getHeight());
                 for (int i = 0; i < Explorer.values().length; i++)
-                    if (new Rectangle(55 + i * 230, 215, 200, 235).contains(mx, my)) model.selectExplorer(i);
-                if (new Rectangle(310, 475, 380, 45).contains(mx, my)) confirmExplorer();
+                    if (new Rectangle(25 + i * 160, 225, 150, 215).contains(mx, my)) model.selectExplorer(selectionPlayer, i);
+                if (new Rectangle(25, 158, 265, 37).contains(mx, my) && (!started || model.won || model.gameOver)) toggleMode();
+                if (model.cooperative && new Rectangle(315, 158, 380, 37).contains(mx, my)) selectionPlayer = 1 - selectionPlayer;
+                if (new Rectangle(300, 475, 400, 42).contains(mx, my)) confirmExplorer();
                 requestFocusInWindow(); repaint();
             }
         });
         addFocusListener(new FocusAdapter() {
-            @Override public void focusLost(FocusEvent e) { keys.clear(); jumpQueued = false; if (started && !labOpen) paused = true; }
+            @Override public void focusLost(FocusEvent e) { clearInput(); if (started && !labOpen) paused = true; }
         });
         timer = new Timer(16, event -> {
-            long now = System.nanoTime();
-            accumulator += Math.min((now - previous) / 1_000_000_000.0, .1); previous = now;
+            long now = System.nanoTime(); accumulator += Math.min((now - previous) / 1_000_000_000.0, .1); previous = now;
             while (accumulator >= 1.0 / 60) {
                 if (started && !paused && !labOpen && !choosing) {
-                    model.tick(keys.contains(KeyEvent.VK_LEFT) || keys.contains(KeyEvent.VK_A), keys.contains(KeyEvent.VK_RIGHT) || keys.contains(KeyEvent.VK_D), jumpQueued);
+                    model.tick(new GameModel.Input(keys.contains(KeyEvent.VK_LEFT) || !model.cooperative && keys.contains(KeyEvent.VK_A),
+                                    keys.contains(KeyEvent.VK_RIGHT) || !model.cooperative && keys.contains(KeyEvent.VK_D), jumpOne),
+                            new GameModel.Input(keys.contains(KeyEvent.VK_A), keys.contains(KeyEvent.VK_D), jumpTwo));
                 }
-                jumpQueued = false; accumulator -= 1.0 / 60;
+                jumpOne = jumpTwo = false; accumulator -= 1.0 / 60;
             }
             repaint();
         });
     }
+    private void clearInput() { keys.clear(); jumpOne = jumpTwo = false; }
+    private void toggleMode() { model.cooperative = !model.cooperative; selectionPlayer = 0; }
     @Override public void addNotify() { super.addNotify(); previous = System.nanoTime(); timer.start(); }
     @Override public void removeNotify() { timer.stop(); super.removeNotify(); }
     private void confirmExplorer() {
         if (model.won || model.gameOver) model.restart();
-        choosing = false; started = true; paused = false; keys.clear(); jumpQueued = false;
+        choosing = false; started = true; paused = false; clearInput();
     }
-    private void openLab() {
-        if (!model.canUseTerminal()) return;
-        labOpen = true; keys.clear(); jumpQueued = false;
-        LabDialog dialog = new LabDialog(SwingUtilities.getWindowAncestor(this), api, Lesson.ALL[model.level]);
-        dialog.setVisible(true);
-        if (dialog.solved()) model.unlocked = true;
-        labOpen = false; requestFocusInWindow();
+    private void openCentral() {
+        int central = model.canUseTerminal(0) && !model.apiSolved() ? 0
+                : model.canUseTerminal(1) && !model.logicSolved() ? 1 : -1;
+        if (central < 0) return;
+        labOpen = true; clearInput();
+        if (central == 0) {
+            LabDialog dialog = new LabDialog(SwingUtilities.getWindowAncestor(this), api, model.apiLesson());
+            dialog.setVisible(true); if (dialog.solved()) model.completeApi();
+        } else {
+            LogicDialog dialog = new LogicDialog(SwingUtilities.getWindowAncestor(this), model.logicChallenge());
+            dialog.setVisible(true); if (dialog.solved()) model.submitLogic(model.logicChallenge().answer());
+        }
+        labOpen = false; clearInput(); requestFocusInWindow();
     }
     @Override protected void paintComponent(Graphics original) {
         super.paintComponent(original);
-        Graphics2D g = (Graphics2D) original.create();
+        Graphics2D g = (Graphics2D)original.create();
         g.scale(getWidth() / 1000.0, getHeight() / 600.0);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        RegionTheme theme = RegionTheme.ALL[model.level];
-        g.setPaint(new GradientPaint(0, 0, theme.sky(), 0, 600, theme.horizon()));
-        g.fillRect(0, 0, 1000, 600);
-        int camera = (int)Math.max(0, Math.min(GameModel.WIDTH - 1000, model.x - 330));
-        theme.drawBackdrop(g, camera, model.level);
-        g.translate(-camera, 0);
+        RegionTheme theme = RegionTheme.ALL[model.region()];
+        g.setPaint(new GradientPaint(0, 0, theme.sky(), 0, 600, theme.horizon())); g.fillRect(0, 0, 1000, 600);
+        int camera = (int)model.camera(); theme.drawBackdrop(g, camera, model.region()); g.translate(-camera, 0);
         for (Rectangle platform : model.platforms) {
             if (platform instanceof TerrainPlatform terrain && !terrain.active()) {
                 g.setColor(new Color(220, 159, 88, 80));
@@ -145,66 +159,98 @@ public final class GamePanel extends JPanel {
             g.setColor(Color.WHITE); g.fillRect(r.x + 5, r.y + 6, 6, 6); g.fillRect(r.x + 19, r.y + 6, 6, 6);
             g.setColor(new Color(30, 28, 57)); g.fillRect(r.x + 8, r.y + 8, 3, 4); g.fillRect(r.x + 19, r.y + 8, 3, 4);
         }
-        g.setColor(new Color(14, 26, 45)); g.fillRoundRect(GameModel.TERMINAL_X - 15, 430, 58, 60, 8, 8);
-        g.setColor(model.centralReady() ? new Color(93, 231, 213) : new Color(115, 125, 140)); g.fillRect(GameModel.TERMINAL_X - 8, 438, 44, 26);
-        label(g, "{ }", GameModel.TERMINAL_X, 458, 17, new Color(14, 26, 45));
-        label(g, "CENTRAL", GameModel.TERMINAL_X - 32, 415, 13, Color.WHITE);
-        if (!model.unlocked) {
+        for (Rectangle heart : model.hearts) {
+            g.setColor(new Color(245, 89, 121));
+            g.fillRect(heart.x, heart.y + 3, 10, 10); g.fillRect(heart.x + 14, heart.y + 3, 10, 10);
+            g.fillRect(heart.x + 4, heart.y + 8, 16, 11); g.fillRect(heart.x + 8, heart.y + 19, 8, 5);
+            g.setColor(new Color(255, 218, 225)); g.fillRect(heart.x + 3, heart.y + 5, 4, 3);
+        }
+        drawCentral(g, 0, GameModel.TERMINAL_X); drawCentral(g, 1, GameModel.LOGIC_X);
+        if (!model.unlocked()) {
             g.setColor(new Color(255, 189, 89, 160)); g.fillRect(GameModel.GATE_X, 110, 38, 380);
-            label(g, "API", GameModel.GATE_X + 3, 300, 14, new Color(31, 35, 51));
-        } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", GameModel.GATE_X - 240, 395, 15, new Color(122, 247, 193));
+            label(g, ((model.apiSolved() ? 1 : 0) + (model.logicSolved() ? 1 : 0)) + "/2", GameModel.GATE_X + 2, 300, 13, new Color(31, 35, 51));
+        }
         g.setColor(new Color(215, 235, 232)); g.fillRect(GameModel.EXIT_X + 20, 310, 5, 180);
         g.setColor(new Color(102, 235, 189)); g.fillPolygon(new int[]{GameModel.EXIT_X + 25, GameModel.EXIT_X + 85, GameModel.EXIT_X + 25}, new int[]{310, 335, 360}, 3);
-        if (model.invincible % 12 < 8) model.explorer.draw(g, (int)model.x, (int)model.y, 1);
-        if (model.nearTerminal() && started) label(g,
-                model.centralReady() ? "[E] Conectar à central" : "Central inativa • faltam " + model.remainingCoins() + " moedas",
-                GameModel.TERMINAL_X - 240, 380, 16, Color.WHITE);
-        g.translate(camera, 0);
-        g.setColor(new Color(9, 18, 34, 225)); g.fillRect(0, 0, 1000, 82); g.fillRect(0, 550, 1000, 50);
-        label(g, "REDE DOS HORIZONTES", 28, 32, 22, new Color(104, 235, 199));
-        label(g, Lesson.ALL[model.level].title(), 28, 60, 15, Color.WHITE);
-        label(g, "ENERGIA  " + model.lives + "     MOEDAS  " + model.collectedLevelCoins() + "/" + model.levelCoinTotal() + "     SETOR  " + (model.level + 1) + "/" + Lesson.ALL.length, 510, 43, 16, Color.WHITE);
-        label(g, "A/D ou ←/→  mover     Espaço  pular     E  terminal     P  pausar", 28, 581, 15, new Color(190, 211, 223));
-        if (choosing) drawSelection(g);
-        else if (started && !model.won && !model.gameOver && !paused && model.level >= 6) {
-            label(g, model.level == 6 ? "Gelo em movimento: espere a altura certa para saltar."
-                    : "Sucata instável: salte antes que as placas cedam.", 28, 108, 15, theme.accent());
+        if (model.cooperative) {
+            g.setColor(model.ropeDistance() > 470 ? new Color(255, 155, 80) : new Color(237, 220, 165));
+            g.setStroke(new BasicStroke(3));
+            g.drawLine((int)model.first.x + 14, (int)model.first.y + 20, (int)model.second.x + 14, (int)model.second.y + 20);
+            g.setStroke(new BasicStroke(1));
         }
-        if (!choosing && model.won) overlay(g, "OS HORIZONTES RESPONDEM", "As oito regiões voltaram a se comunicar. Um novo horizonte desperta.", "Cada sinal recuperado agora ilumina um novo caminho.", "Dados coletados: " + model.coins + " • R para nova expedição • C para escolher personagem");
-        else if (!choosing && model.gameOver) overlay(g, "SINAL PERDIDO", "Sua conexão se apagou, mas as centrais ainda aguardam.", "Salte sobre os sentinelas e procure abrigo nas plataformas.", "R para retomar • C para escolher personagem");
-        else if (!choosing && paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Reúna todas as moedas, restabeleça a central e siga até o sinal.", "P para continuar • C para escolher personagem");
+        if (model.invincible % 12 < 8) {
+            model.first.explorer.draw(g, (int)model.first.x, (int)model.first.y, 1);
+            if (model.cooperative) model.second.explorer.draw(g, (int)model.second.x, (int)model.second.y, 1);
+        }
+        if (model.cooperative) {
+            label(g, "P1", (int)model.first.x, (int)model.first.y - 8, 11, Color.WHITE);
+            label(g, "P2", (int)model.second.x, (int)model.second.y - 8, 11, new Color(255, 211, 110));
+        }
+        g.translate(camera, 0);
+        g.setColor(new Color(9, 18, 34, 235)); g.fillRect(0, 0, 1000, 82); g.fillRect(0, 550, 1000, 50);
+        label(g, "REDE DOS HORIZONTES", 25, 30, 21, new Color(104, 235, 199));
+        label(g, GameModel.REGION_NAMES[model.region()], 25, 59, 16, Color.WHITE);
+        label(g, (model.cooperative ? "EQUIPE " : "ENERGIA ") + model.lives + "/7   MOEDAS " + model.collectedLevelCoins() + "/" + model.levelCoinTotal()
+                + "   TRECHO " + (model.level + 1) + "/10", 485, 29, 16, Color.WHITE);
+        label(g, "API " + (model.apiSolved() ? "OK" : "—") + "   LÓGICA " + (model.logicSolved() ? "OK" : "—")
+                + (model.cooperative ? "   CORDA " + (int)model.ropeDistance() + "/500" : "   SOLO"), 485, 58, 15, new Color(184, 205, 222));
+        label(g, model.cooperative ? "P1: ← → ↑ / Enter    P2: A D W / E    P: pausa    C na pausa: personagens"
+                : "A/D ou ←/→: mover    W/↑/Espaço: salto    E/Enter: central    P: pausa", 25, 580, 15, Color.WHITE);
+        if (choosing) drawSelection(g);
+        else if (model.won) overlay(g, "DEZ HORIZONTES RESTAURADOS", "As duas centrais de cada região voltaram a responder.",
+                "Uma nova expedição trará outra ordem e novos desafios.", "R: nova expedição • C: escolher personagens");
+        else if (model.gameOver) overlay(g, "SINAL PERDIDO", "A conexão se apagou. Uma nova rota está à espera.",
+                "Corações restauram energia. Na dupla, ninguém fica para trás.", "R: nova expedição • C: escolher personagens");
+        else if (paused) overlay(g, "EM ABRIGO", "O percurso e os desafios desta expedição estão preservados.",
+                "Reúna as moedas e restabeleça as centrais de API e de lógica.", "P: continuar • C: personagens • N: nova expedição");
+        else if (model.nearTerminal(0) || model.nearTerminal(1)) {
+            String message = !model.centralReady() ? "Faltam " + model.remainingCoins() + " moedas para ativar as centrais."
+                    : model.cooperative && !model.canUseTerminal(0) && !model.canUseTerminal(1) ? "Aproxime os dois exploradores da mesma central."
+                    : "Enter / E: conectar • API e lógica devem ser concluídas.";
+            label(g, message, 25, 108, 16, Color.WHITE);
+        } else label(g, "Colete as moedas • corações: +1 energia • duas centrais no fim da rota", 25, 108, 14, theme.accent());
         g.dispose();
+    }
+    private void drawCentral(Graphics2D g, int index, int x) {
+        boolean solved = index == 0 ? model.apiSolved() : model.logicSolved();
+        g.setColor(new Color(14, 26, 45)); g.fillRect(x - 15, 430, 58, 60);
+        g.setColor(solved ? new Color(116, 238, 160) : model.centralReady() ? new Color(100, 210, 240) : new Color(115, 125, 140));
+        g.fillRect(x - 8, 438, 44, 26);
+        label(g, solved ? "OK" : index == 0 ? "{ }" : "01", x, 457, 16, new Color(14, 26, 45));
+        label(g, index == 0 ? "API" : "LÓGICA", x - 5, 415, 14, Color.WHITE);
     }
     private void drawSelection(Graphics2D g) {
         g.setColor(new Color(7, 16, 30, 245)); g.fillRect(0, 82, 1000, 468);
-        label(g, "QUEM ATRAVESSARÁ O HORIZONTE?", 55, 130, 27, new Color(108, 239, 202));
-        label(g, "Oito regiões em silêncio. Reúna as moedas e restabeleça suas centrais.", 55, 164, 17, Color.WHITE);
-        label(g, "← / → ou 1–4 para escolher • clique nos retratos", 55, 193, 14, new Color(184, 205, 222));
+        label(g, "ESCOLHA QUEM ATRAVESSARÁ OS HORIZONTES", 25, 121, 25, new Color(108, 239, 202));
+        g.setColor(new Color(35, 77, 81)); g.fillRect(25, 158, 265, 37);
+        label(g, "M • " + (model.cooperative ? "DUPLA LOCAL" : "EXPEDIÇÃO SOLO"), 40, 183, 17, Color.WHITE);
+        label(g, model.cooperative ? "TAB • selecionando P" + (selectionPlayer + 1) : "1–6 ou setas para escolher", 315, 183, 16, Color.WHITE);
+        label(g, model.cooperative ? "Setas escolhem P1 • A/D escolhem P2 • clique nos retratos" : "Dez regiões e desafios sorteados a cada nova expedição", 25, 211, 14, new Color(184, 205, 222));
         for (Explorer explorer : Explorer.values()) {
-            int cx = 55 + explorer.ordinal() * 230;
-            boolean selected = model.explorer == explorer;
-            g.setColor(selected ? new Color(35, 77, 81) : new Color(22, 36, 55));
-            g.fillRect(cx, 215, 200, 235);
-            g.setColor(selected ? new Color(108, 239, 202) : new Color(56, 75, 95));
-            g.drawRect(cx, 215, 200, 235);
-            label(g, "0" + (explorer.ordinal() + 1), cx + 14, 239, 13, Color.WHITE);
-            explorer.draw(g, cx + 58, 250, 3);
-            label(g, explorer.displayName, cx + 20, 397, 24, Color.WHITE);
-            label(g, explorer.subtitle, cx + 20, 426, 15, new Color(184, 205, 222));
+            int cx = 25 + explorer.ordinal() * 160;
+            boolean p1 = model.first.explorer == explorer, p2 = model.cooperative && model.second.explorer == explorer;
+            g.setColor(p1 || p2 ? new Color(35, 77, 81) : new Color(22, 36, 55)); g.fillRect(cx, 225, 150, 215);
+            g.setColor(p1 ? new Color(108, 239, 202) : p2 ? new Color(255, 211, 110) : new Color(56, 75, 95)); g.drawRect(cx, 225, 150, 215);
+            label(g, "" + (explorer.ordinal() + 1) + (p1 ? "  P1" : "") + (p2 ? "  P2" : ""), cx + 10, 247, 13, Color.WHITE);
+            explorer.draw(g, cx + 33, 262, 3);
+            label(g, explorer.displayName, cx + 12, 402, 22, Color.WHITE);
+            label(g, explorer.subtitle, cx + 12, 425, 12, new Color(184, 205, 222));
         }
-        g.setColor(new Color(108, 239, 202)); g.fillRect(310, 475, 380, 45);
-        label(g, started ? "ENTER • Retomar travessia" : "ENTER • Iniciar travessia", 362, 504, 18, new Color(9, 25, 35));
-        label(g, "A aparência muda. A coragem e os controles são os mesmos.", 266, 540, 14, new Color(184, 205, 222));
+        label(g, model.cooperative ? "Energia compartilhada • corda de 500 unidades • cheguem juntos às centrais e à saída"
+                : "Reúna todas as moedas. Complete API e lógica para liberar cada passagem.", 25, 462, 14, Color.WHITE);
+        g.setColor(new Color(108, 239, 202)); g.fillRect(300, 475, 400, 42);
+        label(g, started && !model.won && !model.gameOver ? "ENTER • Retomar travessia" : "ENTER • Iniciar travessia", 365, 503, 18, new Color(9, 25, 35));
+        label(g, "Mesmas habilidades para todos • P pausa • N na pausa sorteia uma nova expedição", 190, 539, 14, new Color(184, 205, 222));
     }
     private static void label(Graphics2D g, String text, int x, int y, int size, Color color) {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, size)); g.setColor(color); g.drawString(text, x, y);
     }
     private static void overlay(Graphics2D g, String title, String first, String second, String action) {
-        g.setColor(new Color(4, 10, 24, 200)); g.fillRect(0, 82, 1000, 468);
-        g.setColor(new Color(22, 39, 61)); g.fillRoundRect(80, 175, 840, 260, 24, 24);
-        label(g, title, 115, 235, 30, new Color(108, 239, 202));
-        label(g, first, 115, 290, 17, Color.WHITE);
-        label(g, second, 115, 325, 16, new Color(184, 205, 222));
-        label(g, action, 115, 390, 18, new Color(255, 212, 115));
+        g.setColor(new Color(4, 10, 24, 220)); g.fillRect(0, 82, 1000, 468);
+        g.setColor(new Color(22, 39, 61)); g.fillRoundRect(55, 175, 890, 260, 24, 24);
+        label(g, title, 85, 235, 28, new Color(108, 239, 202));
+        label(g, first, 85, 290, 16, Color.WHITE);
+        label(g, second, 85, 325, 16, new Color(184, 205, 222));
+        label(g, action, 85, 390, 17, new Color(255, 212, 115));
     }
 }

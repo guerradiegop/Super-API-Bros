@@ -13,7 +13,9 @@ public record RegionTheme(Color sky, Color horizon, Color stone, Color accent) {
         theme(0x633e54, 0xefb36c, 0x986447, 0xffd794),
         theme(0x102448, 0x507ba0, 0x304d6c, 0xa1e8ff),
         theme(0x264f78, 0xb6dfef, 0x588ba8, 0xf1fcff),
-        theme(0x302a24, 0xa88354, 0x574c3f, 0xb7bb65)
+        theme(0x302a24, 0xa88354, 0x574c3f, 0xb7bb65),
+        theme(0x123c56, 0x4eb5b5, 0x416f83, 0x7cf2dc),
+        theme(0x251647, 0x825686, 0x443757, 0xffba67)
     };
     private static RegionTheme theme(int sky, int horizon, int stone, int accent) {
         return new RegionTheme(new Color(sky), new Color(horizon), new Color(stone), new Color(accent));
@@ -70,6 +72,22 @@ public record RegionTheme(Color sky, Color horizon, Color stone, Color accent) {
                         g.setColor(layer == 0 ? stone.darker() : stone);
                         g.drawLine(x + 130, top + 60, x + 190, top + 100);
                         g.fillOval(x + 95, top - 100, 45, 80);
+                    }
+                    case 8 -> {
+                        g.fillOval(x - 20, top + 80, 180, 240);
+                        g.fillRect(x + 60, top + 20, 12, 100);
+                        g.drawArc(x + 20, top + 10, 100, 50, 0, 180);
+                        g.setColor(accent);
+                        g.drawArc(x - 30, 460 + layer * 10, 160, 30, 0, 180);
+                        g.setColor(layer == 0 ? stone.darker() : stone);
+                    }
+                    case 9 -> {
+                        g.fillRect(x + 25, top, 110, 300);
+                        g.drawOval(x + 35, top - 65, 90, 120);
+                        g.setColor(accent);
+                        g.drawOval(x + 50, top - 45, 60, 80);
+                        g.drawLine(x + 80, top + 35, x + 80, 490);
+                        g.setColor(layer == 0 ? stone.darker() : stone);
                     }
                     default -> throw new IllegalArgumentException("Unknown region");
                 }

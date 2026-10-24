@@ -97,3 +97,25 @@ Exige `Authorization: Bearer aluno-api`, `Content-Type: application/json` e corp
 ```
 
 Nos dois endpoints: método incorreto → 405 com Allow; tipo incorreto → 415; JSON inválido → 400; corpo acima de 4096 bytes → 413; valor obrigatório ausente ou incorreto → 422. No purificador, token ausente/incorreto → 401 com WWW-Authenticate. São confirmações demonstrativas sem persistência; Location do aquecedor não implementa GET.
+
+## GET /tides?mode=low
+
+Sem autenticação. Query exata obrigatória `mode=low`; outra query retorna 400. Resposta 200:
+
+```json
+{"tide":"low","gate":"open"}
+```
+
+## POST /reactor
+
+Exige `Content-Type: application/json` e corpo `{"cell":"solar"}`. Sem autenticação. Retorna 201 com `Location: /reactor/demo`:
+
+```json
+{"reactor":"online","gate":"open"}
+```
+
+Método incorreto: 405; tipo incorreto: 415; JSON inválido: 400; corpo acima de 4096 bytes: 413; célula ausente/incorreta: 422. Confirmação demonstrativa, sem persistência e sem GET no Location.
+
+## Distribuição na campanha
+
+Os dez protocolos são embaralhados entre as dez regiões, sem repetição por partida. Cada região também contém uma central independente de lógica computacional, validada localmente e sem chamada HTTP. Todas as moedas da fase e, no cooperativo, a proximidade dos dois personagens são necessárias para acessar as centrais. As duas centrais devem estar concluídas para abrir o portal; `gate: open` numa resposta HTTP confirma apenas o protocolo API, não substitui o desafio de lógica.

@@ -8,7 +8,9 @@ public enum Explorer {
     NEY("Ney", "O driblador", 0xb8794d, 0xe5c16a, 0xf3ce36),
     LEO("Leo", "O maestro", 0xe3b18b, 0x57352a, 0x80cbe5),
     CRIS("Cris", "O artilheiro", 0xc98e64, 0x25232a, 0xb82f42),
-    DILA("Dila", "A comandante", 0xe6af92, 0x743c2d, 0xd3444b);
+    DILA("Dila", "A comandante", 0xe6af92, 0x743c2d, 0xd3444b),
+    NITA("Nita", "A estrela", 0xb77955, 0x30211c, 0xa83dba),
+    VIVI("Vivi", "A comunicadora", 0xe5b493, 0xe1bd73, 0xf097b5);
 
     public final String displayName, subtitle;
     private final Color skin, hair, shirt;
@@ -52,6 +54,15 @@ public enum Explorer {
                 pixels(g, new Color(102, 91, 83), 7, 1, 4, 1);
                 pixels(g, new Color(44, 106, 69), 2, 10, 2, 6);
                 pixels(g, white, 6, 12, 4, 1); pixels(g, white, 9, 13, 1, 2);
+            }
+            case NITA, VIVI -> {
+                pixels(g, hair, 2, 2, 3, 11); pixels(g, hair, 10, 2, 3, 11);
+                pixels(g, hair, 3, 0, 9, 3);
+                pixels(g, shirt, 4, 11, 6, 5);
+                pixels(g, new Color(255, 215, 115), 2, 7, 1, 2);
+                pixels(g, new Color(255, 215, 115), 12, 7, 1, 2);
+                pixels(g, this == NITA ? dark : white, 5, 14, 5, 1);
+                pixels(g, white, this == NITA ? 9 : 5, 11, 1, 1);
             }
             case DILA -> {
                 pixels(g, hair, 2, 2, 3, 6); pixels(g, hair, 10, 2, 3, 6);
