@@ -26,7 +26,7 @@ public final class GamePanel extends JPanel {
                 if (key == KeyEvent.VK_SPACE || key == KeyEvent.VK_UP || key == KeyEvent.VK_W) jumpQueued = true;
                 if (key == KeyEvent.VK_P && started && !labOpen) paused = !paused;
                 if (key == KeyEvent.VK_R && (model.won || model.gameOver)) { model.restart(); started = true; paused = false; }
-                if (key == KeyEvent.VK_E && started && !paused && !labOpen && !model.gameOver && !model.won && model.nearTerminal()) openLab();
+                if (key == KeyEvent.VK_E && started && !paused && !labOpen && !model.gameOver && !model.won && model.canUseTerminal()) openLab();
             }
             @Override public void keyReleased(KeyEvent event) { keys.remove(event.getKeyCode()); }
         });
@@ -48,6 +48,7 @@ public final class GamePanel extends JPanel {
     @Override public void addNotify() { super.addNotify(); previous = System.nanoTime(); timer.start(); }
     @Override public void removeNotify() { timer.stop(); super.removeNotify(); }
     private void openLab() {
+        if (!model.canUseTerminal()) return;
         labOpen = true; keys.clear(); jumpQueued = false;
         LabDialog dialog = new LabDialog(SwingUtilities.getWindowAncestor(this), api, Lesson.ALL[model.level]);
         dialog.setVisible(true);
@@ -93,27 +94,29 @@ public final class GamePanel extends JPanel {
             g.setColor(new Color(30, 28, 57)); g.fillRect(r.x + 8, r.y + 8, 3, 4); g.fillRect(r.x + 19, r.y + 8, 3, 4);
         }
         g.setColor(new Color(14, 26, 45)); g.fillRoundRect(GameModel.TERMINAL_X - 15, 430, 58, 60, 8, 8);
-        g.setColor(new Color(93, 231, 213)); g.fillRect(GameModel.TERMINAL_X - 8, 438, 44, 26);
+        g.setColor(model.centralReady() ? new Color(93, 231, 213) : new Color(115, 125, 140)); g.fillRect(GameModel.TERMINAL_X - 8, 438, 44, 26);
         label(g, "{ }", GameModel.TERMINAL_X, 458, 17, new Color(14, 26, 45));
         label(g, "CENTRAL", GameModel.TERMINAL_X - 32, 415, 13, Color.WHITE);
         if (!model.unlocked) {
             g.setColor(new Color(255, 189, 89, 160)); g.fillRect(GameModel.GATE_X, 110, 38, 380);
             label(g, "API", GameModel.GATE_X + 3, 300, 14, new Color(31, 35, 51));
-        } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", GameModel.GATE_X - 70, 395, 15, new Color(122, 247, 193));
+        } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", GameModel.GATE_X - 240, 395, 15, new Color(122, 247, 193));
         g.setColor(new Color(215, 235, 232)); g.fillRect(GameModel.EXIT_X + 20, 310, 5, 180);
         g.setColor(new Color(102, 235, 189)); g.fillPolygon(new int[]{GameModel.EXIT_X + 25, GameModel.EXIT_X + 85, GameModel.EXIT_X + 25}, new int[]{310, 335, 360}, 3);
         if (model.invincible % 12 < 8) drawPlayer(g, (int)model.x, (int)model.y);
-        if (model.nearTerminal() && started) label(g, "[E] Conectar à central", GameModel.TERMINAL_X - 100, 380, 17, Color.WHITE);
+        if (model.nearTerminal() && started) label(g,
+                model.centralReady() ? "[E] Conectar à central" : "Central inativa • faltam " + model.remainingCoins() + " moedas",
+                GameModel.TERMINAL_X - 240, 380, 16, Color.WHITE);
         g.translate(camera, 0);
         g.setColor(new Color(9, 18, 34, 225)); g.fillRect(0, 0, 1000, 82); g.fillRect(0, 550, 1000, 50);
         label(g, "REDE DOS HORIZONTES", 28, 32, 22, new Color(104, 235, 199));
         label(g, Lesson.ALL[model.level].title(), 28, 60, 15, Color.WHITE);
-        label(g, "ENERGIA  " + model.lives + "     DADOS  " + model.coins + "     SETOR  " + (model.level + 1) + "/" + Lesson.ALL.length, 540, 43, 16, Color.WHITE);
+        label(g, "ENERGIA  " + model.lives + "     MOEDAS  " + model.collectedLevelCoins() + "/" + model.levelCoinTotal() + "     SETOR  " + (model.level + 1) + "/" + Lesson.ALL.length, 510, 43, 16, Color.WHITE);
         label(g, "A/D ou ←/→  mover     Espaço  pular     E  terminal     P  pausar", 28, 581, 15, new Color(190, 211, 223));
-        if (!started) overlay(g, "O SILÊNCIO DA REDE", "Seis regiões perderam contato. Só você pode restabelecer a conexão.", "Encontre as centrais { }, recupere os sinais e abra caminho.", "ENTER para atravessar o limiar");
+        if (!started) overlay(g, "O SILÊNCIO DA REDE", "Seis regiões perderam contato. Só você pode restabelecer a conexão.", "Reúna todas as moedas de cada região para ativar sua central { }.", "ENTER para atravessar o limiar");
         else if (model.won) overlay(g, "OS HORIZONTES RESPONDEM", "As seis regiões voltaram a se comunicar. A cidade desperta.", "Cada sinal recuperado agora ilumina um novo caminho.", "Dados coletados: " + model.coins + " • R para uma nova expedição");
         else if (model.gameOver) overlay(g, "SINAL PERDIDO", "Sua conexão se apagou, mas as centrais ainda aguardam.", "Salte sobre os sentinelas e procure abrigo nas plataformas.", "R para retomar a expedição");
-        else if (paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Restabeleça a central e siga até o sinal no horizonte.", "P para continuar");
+        else if (paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Reúna todas as moedas, restabeleça a central e siga até o sinal.", "P para continuar");
         g.dispose();
     }
     private static void drawPlayer(Graphics2D g, int x, int y) {

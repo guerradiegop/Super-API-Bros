@@ -25,7 +25,7 @@ O JAR executável já está incluído. Também há `run.bat` (Windows, duplo cli
 | P | Pausar/continuar; o jogo pausa ao perder foco |
 | R, após vitória ou derrota | Reiniciar |
 
-Vá até o terminal, leia o contrato, preencha os campos e envie a requisição. O painel mostra status, cabeçalhos, duração e corpo da resposta. Interprete o campo JSON solicitado para liberar a passagem. Alcance a bandeira para avançar. São três vidas; resolver o laboratório ativa um checkpoint. Erros HTTP não custam vidas e podem ser repetidos livremente.
+Colete todas as 18 moedas da região para ativar a central no fim do percurso. O HUD mostra a coleta da região atual; perto da central inativa, uma mensagem informa quantas moedas faltam. Perder uma vida preserva as moedas coletadas; avançar exige uma nova coleta e reiniciar zera tudo. Todas as moedas ficam antes do portal fechado. Depois, vá até o terminal, leia o contrato, preencha os campos e envie a requisição. O painel mostra status, cabeçalhos, duração e corpo da resposta. Interprete o campo JSON solicitado para liberar a passagem. Alcance a bandeira para avançar. São três vidas; resolver o laboratório ativa um checkpoint. Erros HTTP não custam vidas e podem ser repetidos livremente.
 
 ## O que os alunos aprendem
 

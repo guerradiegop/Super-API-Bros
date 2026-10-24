@@ -6,9 +6,10 @@ import java.util.List;
 
 /** Física em passos fixos, independente da interface e testável sem tela. */
 public final class GameModel {
-    public static final int WIDTH = 4800, FLOOR = 490, GATE_X = 2900, TERMINAL_X = 2770, EXIT_X = WIDTH - 110;
+    public static final int WIDTH = 4800, FLOOR = 490, GATE_X = 4660, TERMINAL_X = 4600, EXIT_X = WIDTH - 110;
     public double x, y, vy;
     public int level, lives, coins, invincible;
+    private int levelCoinTotal;
     public boolean grounded, unlocked, won, gameOver;
     public final List<Rectangle> platforms = new ArrayList<>();
     public final List<Rectangle> collectibles = new ArrayList<>();
@@ -64,11 +65,17 @@ public final class GameModel {
         enemies.add(new Enemy(3030, 3220, FLOOR - 28, 1.6 + level * .15, EnemyKind.HOPPER));
         enemies.add(new Enemy(3800, 4060, 355, 1.7 + level * .15, EnemyKind.DRONE));
         enemies.add(new Enemy(4390, 4570, FLOOR - 28, 1.8 + level * .15, EnemyKind.CRAWLER));
+        levelCoinTotal = collectibles.size();
         respawn();
     }
     private void respawn() { x = unlocked ? TERMINAL_X + 20 : 70; y = 420; vy = 0; grounded = false; invincible = 90; }
     public java.awt.geom.Rectangle2D.Double player() { return new java.awt.geom.Rectangle2D.Double(x, y, 28, 38); }
     public boolean nearTerminal() { return Math.abs(x - TERMINAL_X) < 110 && y > 370; }
+    public int remainingCoins() { return collectibles.size(); }
+    public int levelCoinTotal() { return levelCoinTotal; }
+    public int collectedLevelCoins() { return levelCoinTotal - remainingCoins(); }
+    public boolean centralReady() { return remainingCoins() == 0; }
+    public boolean canUseTerminal() { return !won && !gameOver && nearTerminal() && centralReady(); }
     public void tick(boolean left, boolean right, boolean jump) {
         if (won || gameOver) return;
         if (invincible > 0) invincible--;

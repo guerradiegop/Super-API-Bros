@@ -64,10 +64,10 @@ public final class AllTests {
             game.tick(false, false, true); check(game.vy < 0, "Salto");
             double speed = game.vy; game.tick(false, false, true); check(game.vy > speed, "Sem salto infinito no ar");
             game.x = GameModel.GATE_X - 35; game.y = 452; game.vy = 0;
-            for (int i = 0; i < 20; i++) game.tick(false, true, false);
+            for (int i = 0; i < 10; i++) game.tick(false, true, false);
             check(game.x <= GameModel.GATE_X - 28, "Portal bloqueia passagem");
             game.unlocked = true;
-            for (int i = 0; i < 20; i++) game.tick(false, true, false);
+            for (int i = 0; i < 10; i++) game.tick(false, true, false);
             check(game.x > GameModel.GATE_X, "Portal liberado");
             game.x = 740; game.y = 452; game.grounded = true; game.vy = 0;
             for (int i = 0; i < 43; i++) game.tick(false, true, i == 0);
@@ -109,6 +109,37 @@ public final class AllTests {
             game.restart(); game.lives = 1; game.y = 700; game.tick(false, false, false);
             check(game.gameOver, "Fim de jogo");
             game.restart(); check(game.lives == 3 && !game.won && !game.gameOver && game.level == 0, "Reinício");
+            for (int region = 0; region < Lesson.ALL.length; region++) {
+                game.restart(); game.level = region; game.load(); game.enemies.clear();
+                game.coins = 999; // Previous regions' totals cannot unlock this central.
+                game.x = GameModel.TERMINAL_X; game.y = 452;
+                check(!game.canUseTerminal() && game.remainingCoins() == 18, "Central bloqueada na chegada");
+                check(game.collectibles.stream().allMatch(coin -> coin.x + coin.width < GameModel.GATE_X),
+                        "Nenhuma moeda atrás do portal fechado");
+                var route = new java.util.ArrayList<>(game.collectibles);
+                for (int i = 0; i < route.size(); i++) {
+                    var coin = route.get(i);
+                    game.x = coin.x; game.y = coin.y; game.vy = 0;
+                    game.tick(false, false, false); // Collect through real collision handling.
+                    check(game.remainingCoins() == 17 - i, "Coleta individual sem duplicação");
+                    check(game.centralReady() == (i == route.size() - 1), "Só a última moeda ativa a central");
+                }
+                check(!game.unlocked, "Coleta não substitui desafio HTTP");
+                check(!game.canUseTerminal(), "Central exige proximidade");
+                game.x = GameModel.TERMINAL_X; game.y = 452;
+                check(game.canUseTerminal() && game.collectedLevelCoins() == 18, "Central liberada após coleta completa");
+                game.y = 700; game.tick(false, false, false);
+                check(game.remainingCoins() == 0, "Morte preserva moedas da região");
+                game.x = GameModel.TERMINAL_X; game.y = 452;
+                check(game.canUseTerminal(), "Central permanece ativa após respawn");
+                game.unlocked = true; game.x = GameModel.EXIT_X + 10;
+                game.tick(false, false, false);
+                if (region < Lesson.ALL.length - 1) {
+                    check(game.remainingCoins() == 18 && !game.centralReady(), "Nova região exige nova coleta");
+                } else check(game.won && !game.canUseTerminal(), "Vitória encerra interação");
+                game.restart();
+                check(game.coins == 0 && game.collectedLevelCoins() == 0 && !game.centralReady(), "Reinício restaura todas as moedas");
+            }
             // Renderização Swing headless para verificar layout da tela inicial.
             if (args.length > 0 && args[0].equals("--render")) SwingUtilities.invokeAndWait(() -> {
                 try {
@@ -120,7 +151,7 @@ public final class AllTests {
                     var started = GamePanel.class.getDeclaredField("started"); started.setAccessible(true); started.set(panel, true);
                     GameModel rendered = (GameModel)field.get(panel);
                     for (int region = 0; region < Lesson.ALL.length; region++) {
-                        rendered.level = region; rendered.load(); rendered.x = 2600;
+                        rendered.level = region; rendered.load(); rendered.x = GameModel.TERMINAL_X; rendered.y = 452;
                         graphics = image.createGraphics(); panel.paint(graphics); graphics.dispose();
                         ImageIO.write(image, "png", new File("build/region-" + region + ".png"));
                     }
