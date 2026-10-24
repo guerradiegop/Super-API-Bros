@@ -51,3 +51,31 @@ Esta criação é uma demonstração sem persistência. Repetir POST produz nova
 Corpos de erro têm o formato `{"error":"mensagem explicativa"}`. Erros de conexão e timeout não são status HTTP: significam que não foi obtida uma resposta dentro das condições esperadas.
 
 O cliente do jogo usa timeout de conexão de 3 segundos e timeout da requisição de 5 segundos. Só permite a origem do servidor local e não segue redirecionamentos. APIs reais podem exigir HTTPS, paginação e controle de taxa, temas de extensão para a turma.
+
+## GET /weather?region=crystal
+
+Consulta os sensores das Cavernas de cristal. Query exata obrigatória: `region=crystal`; outra query retorna 400. Sem autenticação ou corpo. Resposta 200:
+
+```json
+{"weather":"clear","gate":"open"}
+```
+
+## PUT /beacon
+
+Restaura o farol do Deserto dos sinais. Exige `Content-Type: application/json` e corpo `{"signal":"on"}`. Resposta 200:
+
+```json
+{"beacon":"lit","gate":"open"}
+```
+
+Aplica os mesmos limites de corpo e erros 400, 413 e 415 de POST /bridges. Campo signal ausente ou diferente de on retorna 422. A confirmação é demonstrativa, sem persistência; repetir PUT mantém o mesmo resultado.
+
+## DELETE /interference
+
+Remove a interferência da Cidade suspensa. Exige `Authorization: Bearer aluno-api`; token ausente ou incorreto retorna 401 com `WWW-Authenticate: Bearer`. Sem corpo. Resposta 200:
+
+```json
+{"interference":"removed","gate":"open"}
+```
+
+A remoção é demonstrativa e repetível. Usa 200 com JSON (não 204), para permitir interpretar a confirmação. Todos os novos endpoints rejeitam métodos incorretos com 405 e Allow.

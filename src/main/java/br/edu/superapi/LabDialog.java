@@ -12,11 +12,11 @@ public final class LabDialog extends JDialog {
     private boolean validResponse;
     private boolean solved;
     public LabDialog(Window owner, ApiClient client, Lesson lesson) {
-        super(owner, "Laboratório HTTP — " + lesson.title(), ModalityType.APPLICATION_MODAL);
+        super(owner, "Central de comunicação — " + lesson.title(), ModalityType.APPLICATION_MODAL);
         JPanel root = new JPanel(new BorderLayout(12, 12));
         root.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
         setContentPane(root);
-        JTextArea intro = area(lesson.explanation() + "\n\nCONTRATO DA API\n" + lesson.contract()
+        JTextArea intro = area(lesson.explanation() + "\n\nPROTOCOLO DA CENTRAL\n" + lesson.contract()
                 + "\n\nServidor: " + client.baseUri(), 12);
         root.add(intro, BorderLayout.NORTH);
         JPanel center = new JPanel(new BorderLayout(8, 8));
@@ -29,7 +29,7 @@ public final class LabDialog extends JDialog {
         fields.add(new JLabel("Content-Type (opcional)")); fields.add(type);
         fields.add(new JLabel("Corpo JSON (opcional)")); fields.add(body);
         JButton send = new JButton("Enviar requisição HTTP");
-        fields.add(new JLabel("Teste também caminhos e métodos incorretos.")); fields.add(send);
+        fields.add(new JLabel("Consulte o protocolo desta central.")); fields.add(send);
         center.add(fields, BorderLayout.NORTH);
         center.add(new JScrollPane(output), BorderLayout.CENTER);
         root.add(center, BorderLayout.CENTER);
@@ -38,7 +38,7 @@ public final class LabDialog extends JDialog {
         JTextField answer = new JTextField(); south.add(answer);
         JLabel feedback = new JLabel("Uma resposta correta + sua interpretação liberam o portal."); south.add(feedback);
         JButton confirm = new JButton("Validar resposta e liberar passagem"); south.add(confirm);
-        JButton back = new JButton("Voltar ao jogo"); south.add(back);
+        JButton back = new JButton("Retomar travessia"); south.add(back);
         root.add(south, BorderLayout.SOUTH);
         send.addActionListener(event -> {
             validResponse = false; send.setEnabled(false);

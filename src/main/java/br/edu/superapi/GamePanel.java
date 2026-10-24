@@ -59,21 +59,16 @@ public final class GamePanel extends JPanel {
         Graphics2D g = (Graphics2D) original.create();
         g.scale(getWidth() / 1000.0, getHeight() / 600.0);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        Color[] skies = {new Color(18, 35, 64), new Color(32, 25, 65), new Color(14, 48, 55)};
-        g.setPaint(new GradientPaint(0, 0, skies[model.level], 0, 600, new Color(39, 93, 106)));
+        RegionTheme theme = RegionTheme.ALL[model.level];
+        g.setPaint(new GradientPaint(0, 0, theme.sky(), 0, 600, theme.horizon()));
         g.fillRect(0, 0, 1000, 600);
         int camera = (int)Math.max(0, Math.min(GameModel.WIDTH - 1000, model.x - 330));
-        for (int i = 0; i < 28; i++) {
-            int sx = Math.floorMod(i * 137 - camera / 3, 1080);
-            g.setColor(new Color(150, 195, 208, 120)); g.fillRect(sx, 105 + i * 43 % 210, 3, 3);
-        }
-        g.setColor(new Color(27, 66, 85));
-        for (int i = 0; i < 9; i++) { int hx = i * 250 - camera / 2; g.fillPolygon(new int[]{hx - 100, hx + 100, hx + 300}, new int[]{490, 240 + i % 2 * 70, 490}, 3); }
+        theme.drawBackdrop(g, camera, model.level);
         g.translate(-camera, 0);
         for (Rectangle platform : model.platforms) {
-            g.setColor(new Color(37, 66, 82)); g.fillRect(platform.x, platform.y, platform.width, platform.height);
-            g.setColor(new Color(79, 211, 169)); g.fillRect(platform.x, platform.y, platform.width, 7);
-            g.setColor(new Color(55, 87, 101));
+            g.setColor(theme.stone()); g.fillRect(platform.x, platform.y, platform.width, platform.height);
+            g.setColor(theme.accent()); g.fillRect(platform.x, platform.y, platform.width, 7);
+            g.setColor(theme.stone().brighter());
             for (int tx = platform.x; tx < platform.x + platform.width; tx += 32) g.drawRect(tx, platform.y + 8, Math.min(31, platform.x + platform.width - tx - 1), 22);
         }
         for (Rectangle coin : model.collectibles) {
@@ -81,32 +76,44 @@ public final class GamePanel extends JPanel {
             g.setColor(new Color(171, 110, 38)); g.drawLine(coin.x + 9, coin.y + 5, coin.x + 9, coin.y + 17);
         }
         for (GameModel.Enemy enemy : model.enemies) if (enemy.alive) {
-            Rectangle r = enemy.bounds(); g.setColor(new Color(240, 101, 116)); g.fillRoundRect(r.x, r.y, r.width, r.height, 8, 8);
+            Rectangle r = enemy.bounds();
+            g.setColor(switch (enemy.kind) {
+                case CRAWLER -> new Color(240, 101, 116);
+                case HOPPER -> new Color(255, 185, 75);
+                case DRONE -> new Color(165, 145, 255);
+            });
+            if (enemy.kind == GameModel.EnemyKind.DRONE) {
+                g.fillOval(r.x - 12, r.y + 9, 54, 8);
+                g.drawLine(r.x - 5, r.y + 3, r.x + 35, r.y + 3);
+            } else if (enemy.kind == GameModel.EnemyKind.HOPPER) {
+                g.fillRect(r.x - 3, r.y + 23, 10, 5); g.fillRect(r.x + 23, r.y + 23, 10, 5);
+            }
+             g.fillRoundRect(r.x, r.y, r.width, r.height, 8, 8);
             g.setColor(Color.WHITE); g.fillRect(r.x + 5, r.y + 6, 6, 6); g.fillRect(r.x + 19, r.y + 6, 6, 6);
             g.setColor(new Color(30, 28, 57)); g.fillRect(r.x + 8, r.y + 8, 3, 4); g.fillRect(r.x + 19, r.y + 8, 3, 4);
         }
-        g.setColor(new Color(14, 26, 45)); g.fillRoundRect(1355, 430, 58, 60, 8, 8);
-        g.setColor(new Color(93, 231, 213)); g.fillRect(1362, 438, 44, 26);
-        label(g, "{ }", 1370, 458, 17, new Color(14, 26, 45));
-        label(g, "LAB HTTP", 1338, 415, 13, Color.WHITE);
+        g.setColor(new Color(14, 26, 45)); g.fillRoundRect(GameModel.TERMINAL_X - 15, 430, 58, 60, 8, 8);
+        g.setColor(new Color(93, 231, 213)); g.fillRect(GameModel.TERMINAL_X - 8, 438, 44, 26);
+        label(g, "{ }", GameModel.TERMINAL_X, 458, 17, new Color(14, 26, 45));
+        label(g, "CENTRAL", GameModel.TERMINAL_X - 32, 415, 13, Color.WHITE);
         if (!model.unlocked) {
             g.setColor(new Color(255, 189, 89, 160)); g.fillRect(GameModel.GATE_X, 110, 38, 380);
             label(g, "API", GameModel.GATE_X + 3, 300, 14, new Color(31, 35, 51));
-        } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", 1430, 395, 15, new Color(122, 247, 193));
-        g.setColor(new Color(215, 235, 232)); g.fillRect(2310, 310, 5, 180);
-        g.setColor(new Color(102, 235, 189)); g.fillPolygon(new int[]{2315, 2375, 2315}, new int[]{310, 335, 360}, 3);
+        } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", GameModel.GATE_X - 70, 395, 15, new Color(122, 247, 193));
+        g.setColor(new Color(215, 235, 232)); g.fillRect(GameModel.EXIT_X + 20, 310, 5, 180);
+        g.setColor(new Color(102, 235, 189)); g.fillPolygon(new int[]{GameModel.EXIT_X + 25, GameModel.EXIT_X + 85, GameModel.EXIT_X + 25}, new int[]{310, 335, 360}, 3);
         if (model.invincible % 12 < 8) drawPlayer(g, (int)model.x, (int)model.y);
-        if (model.nearTerminal() && started) label(g, "[E] Abrir laboratório", 1270, 380, 17, Color.WHITE);
+        if (model.nearTerminal() && started) label(g, "[E] Conectar à central", GameModel.TERMINAL_X - 100, 380, 17, Color.WHITE);
         g.translate(camera, 0);
         g.setColor(new Color(9, 18, 34, 225)); g.fillRect(0, 0, 1000, 82); g.fillRect(0, 550, 1000, 50);
-        label(g, "SUPER API BROS", 28, 32, 22, new Color(104, 235, 199));
+        label(g, "REDE DOS HORIZONTES", 28, 32, 22, new Color(104, 235, 199));
         label(g, Lesson.ALL[model.level].title(), 28, 60, 15, Color.WHITE);
-        label(g, "VIDAS  " + model.lives + "     DADOS  " + model.coins + "     FASE  " + (model.level + 1) + "/3", 570, 43, 17, Color.WHITE);
-        label(g, "A/D ou ←/→  mover     Espaço  pular     E  laboratório     P  pausar", 28, 581, 15, new Color(190, 211, 223));
-        if (!started) overlay(g, "A AVENTURA DOS DADOS", "Explore, pule obstáculos e use APIs para abrir os portais.", "Vá até o terminal { } e pressione E. Leia o contrato e experimente.", "ENTER para começar • 3 fases • sem internet");
-        else if (model.won) overlay(g, "MISSÃO CONCLUÍDA!", "Você consultou recursos, enviou credenciais e criou uma ponte.", "Cliente → requisição HTTP → servidor → status + JSON → jogo", "Dados coletados: " + model.coins + " • R para jogar novamente");
-        else if (model.gameOver) overlay(g, "TENTE OUTRA VEZ", "Os bugs venceram esta rodada. O aprendizado continua!", "Pule sobre os bugs. O terminal libera o portal de cada fase.", "R para reiniciar");
-        else if (paused) overlay(g, "PAUSA", "Seu progresso está preservado nesta partida.", "Complete o laboratório e alcance a bandeira para avançar.", "P para continuar");
+        label(g, "ENERGIA  " + model.lives + "     DADOS  " + model.coins + "     SETOR  " + (model.level + 1) + "/" + Lesson.ALL.length, 540, 43, 16, Color.WHITE);
+        label(g, "A/D ou ←/→  mover     Espaço  pular     E  terminal     P  pausar", 28, 581, 15, new Color(190, 211, 223));
+        if (!started) overlay(g, "O SILÊNCIO DA REDE", "Seis regiões perderam contato. Só você pode restabelecer a conexão.", "Encontre as centrais { }, recupere os sinais e abra caminho.", "ENTER para atravessar o limiar");
+        else if (model.won) overlay(g, "OS HORIZONTES RESPONDEM", "As seis regiões voltaram a se comunicar. A cidade desperta.", "Cada sinal recuperado agora ilumina um novo caminho.", "Dados coletados: " + model.coins + " • R para uma nova expedição");
+        else if (model.gameOver) overlay(g, "SINAL PERDIDO", "Sua conexão se apagou, mas as centrais ainda aguardam.", "Salte sobre os sentinelas e procure abrigo nas plataformas.", "R para retomar a expedição");
+        else if (paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Restabeleça a central e siga até o sinal no horizonte.", "P para continuar");
         g.dispose();
     }
     private static void drawPlayer(Graphics2D g, int x, int y) {
