@@ -10,11 +10,13 @@ public final class GameModel {
     public double x, y, vy;
     public int level, lives, coins, invincible;
     private int levelCoinTotal;
+    public Explorer explorer = Explorer.NEY;
+    public void selectExplorer(int index) { explorer = Explorer.values()[Math.floorMod(index, Explorer.values().length)]; }
     public boolean grounded, unlocked, won, gameOver;
     public final List<Rectangle> platforms = new ArrayList<>();
     public final List<Rectangle> collectibles = new ArrayList<>();
     public final List<Enemy> enemies = new ArrayList<>();
-    public enum EnemyKind { CRAWLER, HOPPER, DRONE }
+    public enum EnemyKind { CRAWLER, HOPPER, DRONE, SKATER, FROST_WISP, SCAVENGER }
     public static final class Enemy {
         public double x, speed;
         public final int min, max, baseY;
@@ -27,14 +29,18 @@ public final class GameModel {
         }
         public Rectangle bounds() {
             int lift = switch (kind) {
-                case CRAWLER -> 0;
+                case CRAWLER, SKATER, SCAVENGER -> 0;
                 case HOPPER -> (int)(Math.abs(Math.sin(age * .045)) * 58);
                 case DRONE -> (int)(Math.sin(age * .035) * 30);
+                case FROST_WISP -> (int)(Math.sin(age * .055) * 55);
             };
             return new Rectangle((int)x, baseY - lift, 30, 28);
         }
-        void tick() {
-            age++; x += speed;
+        void tick(double playerX) {
+            age++;
+            double factor = kind == EnemyKind.SKATER ? (age % 120 < 60 ? 1.8 : .4)
+                    : kind == EnemyKind.SCAVENGER ? (Math.abs(playerX - x) < 200 ? 2.3 : .65) : 1;
+            x += speed * factor;
             if (x < min || x > max) { x = Math.max(min, Math.min(max, x)); speed *= -1; }
         }
     }
@@ -42,6 +48,9 @@ public final class GameModel {
     public void restart() { level = 0; lives = 3; coins = 0; won = false; gameOver = false; load(); }
     public void load() {
         unlocked = false; platforms.clear(); collectibles.clear(); enemies.clear();
+        if (level >= 6) {
+            loadFrontier(); levelCoinTotal = collectibles.size(); respawn(); return;
+        }
         // Two 120-unit gaps; their positions differ by region. Maximum jump spans ~200 units.
         int gapA = 780 + level * 40, gapB = 3300 + level * 45;
         platforms.add(new Rectangle(0, FLOOR, gapA, 100));
@@ -68,7 +77,41 @@ public final class GameModel {
         levelCoinTotal = collectibles.size();
         respawn();
     }
-    private void respawn() { x = unlocked ? TERMINAL_X + 20 : 70; y = 420; vy = 0; grounded = false; invincible = 90; }
+    private void loadFrontier() {
+        boolean snow = level == 6;
+        int[] gaps = snow ? new int[]{900, 2100, 3300} : new int[]{1000, 2300, 3600};
+        int gapWidth = snow ? 100 : 120, from = 0;
+        for (int gap : gaps) {
+            platforms.add(new Rectangle(from, FLOOR, gap - from, 100)); from = gap + gapWidth;
+        }
+        platforms.add(new Rectangle(from, FLOOR, WIDTH - from, 100));
+        for (int cluster = 0; cluster < 6; cluster++) {
+            int start = 240 + cluster * 650;
+            for (int step = 0; step < 3; step++) {
+                int px = start + step * 160;
+                int py = step == 1 ? 340 : step == 2 && snow ? 270 : 410;
+                Rectangle coin = new Rectangle(px + 55, py - 32, 18, 22);
+                collectibles.add(coin);
+                platforms.add(step == 1 ? new TerrainPlatform(px, py, snow ? 120 : 90,
+                        snow ? TerrainPlatform.Kind.ICE_LIFT : TerrainPlatform.Kind.CRUMBLING, coin)
+                        : new Rectangle(px, py, 120, 22));
+            }
+            // Ground patrol ranges stay on continuous ground, clear of each chasm.
+            int min = start + 10, max = start + 150;
+            for (int gap : gaps) if (max + 30 > gap && min < gap + gapWidth) {
+                min = gap + gapWidth + 25; max = min + 110;
+            }
+            enemies.add(new Enemy(min, max, FLOOR - 28, snow ? 1.4 : 1.2,
+                    snow ? EnemyKind.SKATER : EnemyKind.SCAVENGER));
+            if (snow && cluster % 2 == 0) enemies.add(new Enemy(start + 180, start + 300,
+                    245, 1.1, EnemyKind.FROST_WISP));
+            if (!snow) enemies.add(new Enemy(start + 325, start + 400, 382, 1.0, EnemyKind.SCAVENGER));
+        }
+    }
+    private void respawn() {
+        for (Rectangle platform : platforms) if (platform instanceof TerrainPlatform terrain) terrain.resetMotion();
+        x = unlocked ? TERMINAL_X + 20 : 70; y = 420; vy = 0; grounded = false; invincible = 90;
+    }
     public java.awt.geom.Rectangle2D.Double player() { return new java.awt.geom.Rectangle2D.Double(x, y, 28, 38); }
     public boolean nearTerminal() { return Math.abs(x - TERMINAL_X) < 110 && y > 370; }
     public int remainingCoins() { return collectibles.size(); }
@@ -80,8 +123,17 @@ public final class GameModel {
         if (won || gameOver) return;
         if (invincible > 0) invincible--;
         double dx = (right ? 4.4 : 0) - (left ? 4.4 : 0);
+        for (Rectangle platform : platforms) if (platform instanceof TerrainPlatform terrain) {
+            boolean riding = terrain.active() && grounded && Math.abs(y + 38 - terrain.y) < 1
+                    && x + 28 > terrain.x && x < terrain.x + terrain.width;
+            int shift = terrain.tick(riding);
+            if (riding && terrain.active()) y += shift;
+            else if (riding) grounded = false;
+        }
         if (jump && grounded) { vy = -12.5; grounded = false; }
-        List<Rectangle> solids = new ArrayList<>(platforms);
+        List<Rectangle> solids = new ArrayList<>();
+        for (Rectangle platform : platforms)
+            if (!(platform instanceof TerrainPlatform terrain) || terrain.active()) solids.add(platform);
         if (!unlocked) solids.add(new Rectangle(GATE_X, 0, 38, FLOOR));
         x = Math.max(0, Math.min(WIDTH - 28, x + dx));
         for (Rectangle solid : solids) if (player().intersects(solid)) {
@@ -97,7 +149,7 @@ public final class GameModel {
         for (Enemy enemy : enemies) {
             if (!enemy.alive) continue;
             int oldEnemyTop = enemy.bounds().y;
-            enemy.tick();
+            enemy.tick(x);
             if (player().intersects(enemy.bounds())) {
                 if (vy > 0 && oldBottom <= oldEnemyTop + 8) { enemy.alive = false; vy = -8; }
                 else if (invincible == 0) { hurt(); return; }

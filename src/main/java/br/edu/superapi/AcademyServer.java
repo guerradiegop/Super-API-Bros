@@ -26,10 +26,12 @@ public final class AcademyServer implements AutoCloseable {
             String path = exchange.getRequestURI().getPath();
             String method = exchange.getRequestMethod();
             if (!path.equals("/world/1") && !path.equals("/keys") && !path.equals("/bridges") && !path.equals("/weather")
-                    && !path.equals("/beacon") && !path.equals("/interference")) {
+                    && !path.equals("/beacon") && !path.equals("/interference")
+                    && !path.equals("/heaters") && !path.equals("/purifier")) {
                 reply(exchange, 404, "{\"error\":\"Endpoint inexistente. Confira o caminho no contrato.\"}"); return;
             }
-            String expected = path.equals("/bridges") ? "POST" : path.equals("/beacon") ? "PUT"
+            String expected = (path.equals("/bridges") || path.equals("/heaters")) ? "POST"
+                    : (path.equals("/beacon") || path.equals("/purifier")) ? "PUT"
                     : path.equals("/interference") ? "DELETE" : "GET";
             if (!expected.equals(method)) {
                 exchange.getResponseHeaders().set("Allow", expected);
@@ -55,6 +57,10 @@ public final class AcademyServer implements AutoCloseable {
                 }
                 reply(exchange, 200, "{\"key\":\"blue\",\"gate\":\"open\"}");
             } else {
+                if (path.equals("/purifier") && !"Bearer aluno-api".equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+                    exchange.getResponseHeaders().set("WWW-Authenticate", "Bearer");
+                    reply(exchange, 401, "{\"error\":\"Credencial de manutenção ausente ou inválida.\"}"); return;
+                }
                 String type = exchange.getRequestHeaders().getFirst("Content-Type");
                 if (type == null || !type.split(";", 2)[0].trim().equalsIgnoreCase("application/json")) {
                     reply(exchange, 415, "{\"error\":\"Envie Content-Type: application/json.\"}"); return;
@@ -64,6 +70,16 @@ public final class AcademyServer implements AutoCloseable {
                 Map<String, String> body;
                 try { body = Json.parse(new String(bytes, StandardCharsets.UTF_8)); }
                 catch (IllegalArgumentException ex) { reply(exchange, 400, "{\"error\":\"JSON inválido. Use um objeto com valores string.\"}"); return; }
+                if (path.equals("/heaters") || path.equals("/purifier")) {
+                    boolean heater = path.equals("/heaters");
+                    String required = heater ? "thermal" : "carbon";
+                    if (!required.equals(body.get(heater ? "fuel" : "filter"))) {
+                        reply(exchange, 422, "{\"error\":\"Confira o combustível ou filtro no protocolo.\"}"); return;
+                    }
+                    if (heater) exchange.getResponseHeaders().set("Location", "/heaters/demo");
+                    reply(exchange, heater ? 201 : 200, heater ? "{\"heat\":\"warm\",\"gate\":\"open\"}"
+                            : "{\"air\":\"clean\",\"gate\":\"open\"}"); return;
+                }
                 if (path.equals("/beacon")) {
                     if (!"on".equals(body.get("signal"))) {
                         reply(exchange, 422, "{\"error\":\"signal deve ser on.\"}"); return;

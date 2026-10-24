@@ -38,7 +38,15 @@ public record Lesson(String title, String explanation, String contract, String m
         new Lesson("06 / Cidade suspensa",
             "Uma interferência isolou a cidade. Remova a origem com DELETE.\nApresente sua credencial para autorizar a remoção. Esta central retorna JSON com status 200.",
             "DELETE /interference\nAuthorization: Bearer aluno-api\nResposta: 200 + JSON com interference e gate.",
-            "DELETE", "/interference", 200, "interference", "removed", "Qual resultado aparece em interference?")
+            "DELETE", "/interference", 200, "interference", "removed", "Qual resultado aparece em interference?"),
+        new Lesson("07 / Cordilheira branca",
+            "O frio interrompeu o sinal. Ative um aquecedor com uma ordem POST.\nAs plataformas de gelo sobem e descem; aguarde o melhor momento para saltar.",
+            "POST /heaters\nContent-Type: application/json\nCorpo: {\"fuel\":\"thermal\"}\nResposta: 201 + JSON com heat e gate.",
+            "POST", "/heaters", 201, "heat", "warm", "Qual estado aparece em heat?"),
+        new Lesson("08 / Horizonte das cinzas",
+            "A central respira ar contaminado. Reconfigure o purificador com PUT.\nA manutenção exige credencial, Content-Type e o filtro correto.",
+            "PUT /purifier\nAuthorization: Bearer aluno-api\nContent-Type: application/json\nCorpo: {\"filter\":\"carbon\"}\nResposta: 200 + JSON com air e gate.",
+            "PUT", "/purifier", 200, "air", "clean", "Qual condição aparece em air?")
     };
     public boolean accepts(String sentMethod, String sentPath, HttpResponse<String> response) {
         if (!method.equals(sentMethod) || !path.equals(sentPath) || response.statusCode() != status) return false;

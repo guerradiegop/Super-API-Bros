@@ -11,7 +11,9 @@ public record RegionTheme(Color sky, Color horizon, Color stone, Color accent) {
         theme(0x38271e, 0xb87846, 0x624331, 0xf2ba65),
         theme(0x100f32, 0x42356e, 0x302a58, 0x6ce9ef),
         theme(0x633e54, 0xefb36c, 0x986447, 0xffd794),
-        theme(0x102448, 0x507ba0, 0x304d6c, 0xa1e8ff)
+        theme(0x102448, 0x507ba0, 0x304d6c, 0xa1e8ff),
+        theme(0x264f78, 0xb6dfef, 0x588ba8, 0xf1fcff),
+        theme(0x302a24, 0xa88354, 0x574c3f, 0xb7bb65)
     };
     private static RegionTheme theme(int sky, int horizon, int stone, int accent) {
         return new RegionTheme(new Color(sky), new Color(horizon), new Color(stone), new Color(accent));
@@ -49,6 +51,26 @@ public record RegionTheme(Color sky, Color horizon, Color stone, Color accent) {
                         g.fillRect(x + 45, top - 50, 50, 150);
                         g.drawLine(x + 150, top + 100, x + 190, top + 100);
                     }
+                    case 6 -> {
+                        g.fillPolygon(new int[]{x - 80, x + 70, x + 220}, new int[]{490, top - 80, 490}, 3);
+                        g.setColor(new Color(216, 242, 250));
+                        g.fillPolygon(new int[]{x + 36, x + 70, x + 105}, new int[]{top + 4, top - 80, top + 4}, 3);
+                        g.setColor(layer == 0 ? stone.darker() : stone);
+                        g.fillRect(x + 145, top + 55, 8, 160);
+                        g.fillPolygon(new int[]{x + 110, x + 150, x + 185}, new int[]{top + 115, top + 25, top + 115}, 3);
+                    }
+                    case 7 -> {
+                        g.fillPolygon(new int[]{x + 15, x + 15, x + 50, x + 65, x + 115, x + 130, x + 130},
+                                new int[]{490, top - 35, top - 35, top + 10, top - 10, top + 35, 490}, 7);
+                        g.setColor(horizon.darker());
+                        for (int row = 0; row < 4; row++) {
+                            g.fillRect(x + 30, top + 40 + row * 35, 15, 20);
+                            g.fillRect(x + 85, top + 40 + row * 35, 15, 20);
+                        }
+                        g.setColor(layer == 0 ? stone.darker() : stone);
+                        g.drawLine(x + 130, top + 60, x + 190, top + 100);
+                        g.fillOval(x + 95, top - 100, 45, 80);
+                    }
                     default -> throw new IllegalArgumentException("Unknown region");
                 }
             }
@@ -56,7 +78,7 @@ public record RegionTheme(Color sky, Color horizon, Color stone, Color accent) {
         g.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 130));
         for (int i = 0; i < 24; i++) {
             int x = Math.floorMod(i * 137 - camera / 2, 1000);
-            g.fillOval(x, 115 + i * 43 % 300, region == 3 ? 5 : 3, region == 4 ? 2 : 5);
+            g.fillOval(x, 115 + i * 43 % 300, region == 6 ? 6 : region == 3 ? 5 : 3, region == 4 ? 2 : 5);
         }
     }
 }

@@ -79,3 +79,21 @@ Remove a interferência da Cidade suspensa. Exige `Authorization: Bearer aluno-a
 ```
 
 A remoção é demonstrativa e repetível. Usa 200 com JSON (não 204), para permitir interpretar a confirmação. Todos os novos endpoints rejeitam métodos incorretos com 405 e Allow.
+
+## POST /heaters
+
+Sem autenticação. Exige `Content-Type: application/json` e corpo `{"fuel":"thermal"}`. Resposta 201, `Location: /heaters/demo` e JSON:
+
+```json
+{"heat":"warm","gate":"open"}
+```
+
+## PUT /purifier
+
+Exige `Authorization: Bearer aluno-api`, `Content-Type: application/json` e corpo `{"filter":"carbon"}`. Resposta 200:
+
+```json
+{"air":"clean","gate":"open"}
+```
+
+Nos dois endpoints: método incorreto → 405 com Allow; tipo incorreto → 415; JSON inválido → 400; corpo acima de 4096 bytes → 413; valor obrigatório ausente ou incorreto → 422. No purificador, token ausente/incorreto → 401 com WWW-Authenticate. São confirmações demonstrativas sem persistência; Location do aquecedor não implementa GET.

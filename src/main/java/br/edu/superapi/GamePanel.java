@@ -11,6 +11,7 @@ public final class GamePanel extends JPanel {
     private final ApiClient api;
     private final Set<Integer> keys = new HashSet<>();
     private boolean started, paused, labOpen, jumpQueued;
+    private boolean choosing = true;
     private final Timer timer;
     private long previous = System.nanoTime();
     private double accumulator;
@@ -22,13 +23,34 @@ public final class GamePanel extends JPanel {
                 int key = event.getKeyCode();
                 boolean fresh = keys.add(key);
                 if (!fresh) return;
-                if (key == KeyEvent.VK_ENTER) started = true;
+                if (key == KeyEvent.VK_C && !labOpen && (!started || paused || model.won || model.gameOver)) {
+                    choosing = true; keys.clear(); jumpQueued = false; repaint(); return;
+                }
+                if (choosing) {
+                    if (key >= KeyEvent.VK_1 && key <= KeyEvent.VK_4) model.selectExplorer(key - KeyEvent.VK_1);
+                    if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_A) model.selectExplorer(model.explorer.ordinal() - 1);
+                    if (key == KeyEvent.VK_RIGHT || key == KeyEvent.VK_D) model.selectExplorer(model.explorer.ordinal() + 1);
+                    if (key == KeyEvent.VK_ENTER) confirmExplorer();
+                    if (key == KeyEvent.VK_ESCAPE && started) choosing = false;
+                    repaint(); return;
+                }
                 if (key == KeyEvent.VK_SPACE || key == KeyEvent.VK_UP || key == KeyEvent.VK_W) jumpQueued = true;
                 if (key == KeyEvent.VK_P && started && !labOpen) paused = !paused;
                 if (key == KeyEvent.VK_R && (model.won || model.gameOver)) { model.restart(); started = true; paused = false; }
                 if (key == KeyEvent.VK_E && started && !paused && !labOpen && !model.gameOver && !model.won && model.canUseTerminal()) openLab();
             }
             @Override public void keyReleased(KeyEvent event) { keys.remove(event.getKeyCode()); }
+        });
+        addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent event) {
+                if (!choosing) return;
+                int mx = event.getX() * 1000 / Math.max(1, getWidth());
+                int my = event.getY() * 600 / Math.max(1, getHeight());
+                for (int i = 0; i < Explorer.values().length; i++)
+                    if (new Rectangle(55 + i * 230, 215, 200, 235).contains(mx, my)) model.selectExplorer(i);
+                if (new Rectangle(310, 475, 380, 45).contains(mx, my)) confirmExplorer();
+                requestFocusInWindow(); repaint();
+            }
         });
         addFocusListener(new FocusAdapter() {
             @Override public void focusLost(FocusEvent e) { keys.clear(); jumpQueued = false; if (started && !labOpen) paused = true; }
@@ -37,7 +59,7 @@ public final class GamePanel extends JPanel {
             long now = System.nanoTime();
             accumulator += Math.min((now - previous) / 1_000_000_000.0, .1); previous = now;
             while (accumulator >= 1.0 / 60) {
-                if (started && !paused && !labOpen) {
+                if (started && !paused && !labOpen && !choosing) {
                     model.tick(keys.contains(KeyEvent.VK_LEFT) || keys.contains(KeyEvent.VK_A), keys.contains(KeyEvent.VK_RIGHT) || keys.contains(KeyEvent.VK_D), jumpQueued);
                 }
                 jumpQueued = false; accumulator -= 1.0 / 60;
@@ -47,6 +69,10 @@ public final class GamePanel extends JPanel {
     }
     @Override public void addNotify() { super.addNotify(); previous = System.nanoTime(); timer.start(); }
     @Override public void removeNotify() { timer.stop(); super.removeNotify(); }
+    private void confirmExplorer() {
+        if (model.won || model.gameOver) model.restart();
+        choosing = false; started = true; paused = false; keys.clear(); jumpQueued = false;
+    }
     private void openLab() {
         if (!model.canUseTerminal()) return;
         labOpen = true; keys.clear(); jumpQueued = false;
@@ -67,8 +93,21 @@ public final class GamePanel extends JPanel {
         theme.drawBackdrop(g, camera, model.level);
         g.translate(-camera, 0);
         for (Rectangle platform : model.platforms) {
+            if (platform instanceof TerrainPlatform terrain && !terrain.active()) {
+                g.setColor(new Color(220, 159, 88, 80));
+                g.drawRect(platform.x, platform.y, platform.width, platform.height); continue;
+            }
             g.setColor(theme.stone()); g.fillRect(platform.x, platform.y, platform.width, platform.height);
             g.setColor(theme.accent()); g.fillRect(platform.x, platform.y, platform.width, 7);
+            if (platform instanceof TerrainPlatform terrain) {
+                g.setColor(terrain.kind == TerrainPlatform.Kind.ICE_LIFT ? Color.WHITE : new Color(255, 173, 72));
+                if (terrain.kind == TerrainPlatform.Kind.ICE_LIFT) {
+                    g.drawLine(platform.x + 10, platform.y + 12, platform.x + platform.width - 10, platform.y + 12);
+                } else {
+                    for (int mark = 8; mark < platform.width; mark += 18)
+                        g.drawLine(platform.x + mark, platform.y, platform.x + mark + 9, platform.y + (terrain.cracking() ? 20 : 9));
+                }
+            }
             g.setColor(theme.stone().brighter());
             for (int tx = platform.x; tx < platform.x + platform.width; tx += 32) g.drawRect(tx, platform.y + 8, Math.min(31, platform.x + platform.width - tx - 1), 22);
         }
@@ -82,6 +121,9 @@ public final class GamePanel extends JPanel {
                 case CRAWLER -> new Color(240, 101, 116);
                 case HOPPER -> new Color(255, 185, 75);
                 case DRONE -> new Color(165, 145, 255);
+                case SKATER -> new Color(129, 227, 255);
+                case FROST_WISP -> new Color(230, 250, 255);
+                case SCAVENGER -> new Color(154, 175, 69);
             });
             if (enemy.kind == GameModel.EnemyKind.DRONE) {
                 g.fillOval(r.x - 12, r.y + 9, 54, 8);
@@ -89,7 +131,17 @@ public final class GamePanel extends JPanel {
             } else if (enemy.kind == GameModel.EnemyKind.HOPPER) {
                 g.fillRect(r.x - 3, r.y + 23, 10, 5); g.fillRect(r.x + 23, r.y + 23, 10, 5);
             }
-             g.fillRoundRect(r.x, r.y, r.width, r.height, 8, 8);
+            g.fillRoundRect(r.x, r.y, r.width, r.height, 8, 8);
+            if (enemy.kind == GameModel.EnemyKind.SKATER) {
+                g.setColor(Color.WHITE); g.fillRect(r.x - 5, r.y + 26, 40, 3);
+                g.fillRect(r.x + 7, r.y - 5, 16, 5);
+            } else if (enemy.kind == GameModel.EnemyKind.FROST_WISP) {
+                g.drawLine(r.x + 15, r.y - 9, r.x + 15, r.y + 36);
+                g.drawLine(r.x - 8, r.y + 14, r.x + 38, r.y + 14);
+            } else if (enemy.kind == GameModel.EnemyKind.SCAVENGER) {
+                g.setColor(new Color(79, 66, 52)); g.fillRect(r.x - 3, r.y + 10, 36, 8);
+                g.fillRect(r.x + 9, r.y - 5, 12, 5);
+            }
             g.setColor(Color.WHITE); g.fillRect(r.x + 5, r.y + 6, 6, 6); g.fillRect(r.x + 19, r.y + 6, 6, 6);
             g.setColor(new Color(30, 28, 57)); g.fillRect(r.x + 8, r.y + 8, 3, 4); g.fillRect(r.x + 19, r.y + 8, 3, 4);
         }
@@ -103,7 +155,7 @@ public final class GamePanel extends JPanel {
         } else label(g, Lesson.ALL[model.level].status() + " • passagem liberada", GameModel.GATE_X - 240, 395, 15, new Color(122, 247, 193));
         g.setColor(new Color(215, 235, 232)); g.fillRect(GameModel.EXIT_X + 20, 310, 5, 180);
         g.setColor(new Color(102, 235, 189)); g.fillPolygon(new int[]{GameModel.EXIT_X + 25, GameModel.EXIT_X + 85, GameModel.EXIT_X + 25}, new int[]{310, 335, 360}, 3);
-        if (model.invincible % 12 < 8) drawPlayer(g, (int)model.x, (int)model.y);
+        if (model.invincible % 12 < 8) model.explorer.draw(g, (int)model.x, (int)model.y, 1);
         if (model.nearTerminal() && started) label(g,
                 model.centralReady() ? "[E] Conectar à central" : "Central inativa • faltam " + model.remainingCoins() + " moedas",
                 GameModel.TERMINAL_X - 240, 380, 16, Color.WHITE);
@@ -113,16 +165,36 @@ public final class GamePanel extends JPanel {
         label(g, Lesson.ALL[model.level].title(), 28, 60, 15, Color.WHITE);
         label(g, "ENERGIA  " + model.lives + "     MOEDAS  " + model.collectedLevelCoins() + "/" + model.levelCoinTotal() + "     SETOR  " + (model.level + 1) + "/" + Lesson.ALL.length, 510, 43, 16, Color.WHITE);
         label(g, "A/D ou ←/→  mover     Espaço  pular     E  terminal     P  pausar", 28, 581, 15, new Color(190, 211, 223));
-        if (!started) overlay(g, "O SILÊNCIO DA REDE", "Seis regiões perderam contato. Só você pode restabelecer a conexão.", "Reúna todas as moedas de cada região para ativar sua central { }.", "ENTER para atravessar o limiar");
-        else if (model.won) overlay(g, "OS HORIZONTES RESPONDEM", "As seis regiões voltaram a se comunicar. A cidade desperta.", "Cada sinal recuperado agora ilumina um novo caminho.", "Dados coletados: " + model.coins + " • R para uma nova expedição");
-        else if (model.gameOver) overlay(g, "SINAL PERDIDO", "Sua conexão se apagou, mas as centrais ainda aguardam.", "Salte sobre os sentinelas e procure abrigo nas plataformas.", "R para retomar a expedição");
-        else if (paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Reúna todas as moedas, restabeleça a central e siga até o sinal.", "P para continuar");
+        if (choosing) drawSelection(g);
+        else if (started && !model.won && !model.gameOver && !paused && model.level >= 6) {
+            label(g, model.level == 6 ? "Gelo em movimento: espere a altura certa para saltar."
+                    : "Sucata instável: salte antes que as placas cedam.", 28, 108, 15, theme.accent());
+        }
+        if (!choosing && model.won) overlay(g, "OS HORIZONTES RESPONDEM", "As oito regiões voltaram a se comunicar. Um novo horizonte desperta.", "Cada sinal recuperado agora ilumina um novo caminho.", "Dados coletados: " + model.coins + " • R para nova expedição • C para escolher personagem");
+        else if (!choosing && model.gameOver) overlay(g, "SINAL PERDIDO", "Sua conexão se apagou, mas as centrais ainda aguardam.", "Salte sobre os sentinelas e procure abrigo nas plataformas.", "R para retomar • C para escolher personagem");
+        else if (!choosing && paused) overlay(g, "EM ABRIGO", "Seu percurso está preservado enquanto você descansa.", "Reúna todas as moedas, restabeleça a central e siga até o sinal.", "P para continuar • C para escolher personagem");
         g.dispose();
     }
-    private static void drawPlayer(Graphics2D g, int x, int y) {
-        g.setColor(new Color(255, 207, 155)); g.fillRect(x + 5, y + 7, 20, 15);
-        g.setColor(new Color(89, 233, 208)); g.fillRect(x + 2, y, 24, 9); g.fillRect(x, y + 21, 28, 12);
-        g.setColor(new Color(28, 37, 64)); g.fillRect(x + 20, y + 12, 4, 4); g.fillRect(x + 3, y + 33, 9, 5); g.fillRect(x + 18, y + 33, 9, 5);
+    private void drawSelection(Graphics2D g) {
+        g.setColor(new Color(7, 16, 30, 245)); g.fillRect(0, 82, 1000, 468);
+        label(g, "QUEM ATRAVESSARÁ O HORIZONTE?", 55, 130, 27, new Color(108, 239, 202));
+        label(g, "Oito regiões em silêncio. Reúna as moedas e restabeleça suas centrais.", 55, 164, 17, Color.WHITE);
+        label(g, "← / → ou 1–4 para escolher • clique nos retratos", 55, 193, 14, new Color(184, 205, 222));
+        for (Explorer explorer : Explorer.values()) {
+            int cx = 55 + explorer.ordinal() * 230;
+            boolean selected = model.explorer == explorer;
+            g.setColor(selected ? new Color(35, 77, 81) : new Color(22, 36, 55));
+            g.fillRect(cx, 215, 200, 235);
+            g.setColor(selected ? new Color(108, 239, 202) : new Color(56, 75, 95));
+            g.drawRect(cx, 215, 200, 235);
+            label(g, "0" + (explorer.ordinal() + 1), cx + 14, 239, 13, Color.WHITE);
+            explorer.draw(g, cx + 58, 250, 3);
+            label(g, explorer.displayName, cx + 20, 397, 24, Color.WHITE);
+            label(g, explorer.subtitle, cx + 20, 426, 15, new Color(184, 205, 222));
+        }
+        g.setColor(new Color(108, 239, 202)); g.fillRect(310, 475, 380, 45);
+        label(g, started ? "ENTER • Retomar travessia" : "ENTER • Iniciar travessia", 362, 504, 18, new Color(9, 25, 35));
+        label(g, "A aparência muda. A coragem e os controles são os mesmos.", 266, 540, 14, new Color(184, 205, 222));
     }
     private static void label(Graphics2D g, String text, int x, int y, int size, Color color) {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, size)); g.setColor(color); g.drawString(text, x, y);

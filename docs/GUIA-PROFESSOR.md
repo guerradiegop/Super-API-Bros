@@ -56,10 +56,16 @@ O professor escolhe previamente uma API pública apropriada à turma e lê seu c
 
 Solicite que cada dupla entregue uma requisição com erro e sua correção, uma consulta GET em Java e uma criação POST. Pergunte: “Qual informação veio do servidor?”, “O que o cliente decidiu fazer com ela?” e “Qual é a diferença entre status HTTP e corpo JSON?”.
 
-**Gabarito do jogo:** fase 1 → `Jardim dos endpoints`; fase 2 → `blue`; fase 3 → `built`; fase 4 → `clear`; fase 5 → `lit`; fase 6 → `removed`. A resposta digitada só é aceita depois de uma requisição válida para a missão.
+**Gabarito do jogo:** fase 1 → `Jardim dos endpoints`; fase 2 → `blue`; fase 3 → `built`; fase 4 → `clear`; fase 5 → `lit`; fase 6 → `removed`; fase 7 → `warm`; fase 8 → `clean`. A resposta digitada só é aceita depois de uma requisição válida para a missão.
 
 ## Continuação da expedição
 
 Reserve uma sessão adicional para as três novas regiões e os percursos duplicados. Na caverna, compare filtros válidos e inválidos em GET /weather. No deserto, repita PUT /beacon e discuta idempotência e a ausência de persistência nesta demonstração. Na cidade, compare DELETE com e sem credencial e explique por que esta API retorna 200 com JSON em vez de 204 sem corpo.
 
 A interface usa linguagem de expedição e centrais para preservar a imersão; os conceitos técnicos permanecem nos protocolos. Cada região tem um terminal que ativa o checkpoint, depois do qual perder energia não exige repetir a requisição.
+
+## Neve e reconstrução
+
+Na Cordilheira branca, peça uma ordem POST /heaters com combustível incorreto antes de thermal; compare 422 e 201. No Horizonte das cinzas, combine autenticação com validação do corpo: tente PUT /purifier sem credencial, sem Content-Type e com filtro incorreto antes de carbon. Discuta por que a confirmação é demonstrativa e não representa persistência.
+
+Os quatro exploradores têm as mesmas habilidades. Use a seleção inicial ou P → C para trocar o visual. As duas novas regiões mantêm a exigência de todas as moedas antes da central. Oriente a esperar a altura dos elevadores e a saltar das placas de sucata enquanto racham; se uma placa desaparecer, ela reaparece após três segundos.
