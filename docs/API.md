@@ -118,4 +118,4 @@ Método incorreto: 405; tipo incorreto: 415; JSON inválido: 400; corpo acima de
 
 ## Distribuição na campanha
 
-Os dez protocolos são embaralhados entre as dez regiões, sem repetição por partida. Cada região também contém uma central independente de lógica computacional, validada localmente e sem chamada HTTP. Todas as moedas da fase e, no cooperativo, a proximidade dos dois personagens são necessárias para acessar as centrais. As duas centrais devem estar concluídas para abrir o portal; `gate: open` numa resposta HTTP confirma apenas o protocolo API, não substitui o desafio de lógica.
+Os dez protocolos são embaralhados entre as dez regiões, sem repetição por partida. Cada região também contém uma central independente de lógica computacional, validada localmente e sem chamada HTTP. A central API no meio exige as 15 moedas da primeira metade e ativa o checkpoint. A central lógica no final exige a API concluída e todas as 30 moedas. No cooperativo, os dois personagens devem estar próximos da central. As duas centrais devem estar concluídas para abrir o portal; `gate: open` numa resposta HTTP confirma apenas o protocolo API, não substitui o desafio de lógica.

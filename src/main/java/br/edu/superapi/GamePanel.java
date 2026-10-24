@@ -12,15 +12,21 @@ public final class GamePanel extends JPanel {
     private final Set<Integer> keys = new HashSet<>();
     private boolean started, paused, labOpen, choosing = true, jumpOne, jumpTwo;
     private int selectionPlayer;
+    private WindowMode windowMode;
+    public void setWindowMode(WindowMode mode) { windowMode = mode; }
     private final Timer timer;
     private long previous = System.nanoTime();
     private double accumulator;
     public GamePanel(ApiClient api) {
         this.api = api;
-        setPreferredSize(new Dimension(1000, 600)); setFocusable(true);
+        setPreferredSize(new Dimension(1000, 600)); setFocusable(true); setBackground(Color.BLACK);
         addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent event) {
                 int key = event.getKeyCode(); if (!keys.add(key)) return;
+                if (windowMode != null && (key == KeyEvent.VK_F11 || key == KeyEvent.VK_ESCAPE && windowMode.isFullscreen())) {
+                    clearInput(); if (started) paused = true;
+                    windowMode.toggle(); return;
+                }
                 if (key == KeyEvent.VK_C && !labOpen && (!started || paused || model.won || model.gameOver)) {
                     choosing = true; clearInput(); repaint(); return;
                 }
@@ -38,6 +44,9 @@ public final class GamePanel extends JPanel {
                     if (key == KeyEvent.VK_ESCAPE && started) choosing = false;
                     repaint(); return;
                 }
+                if (started && !paused && !labOpen && (key == KeyEvent.VK_K || key == KeyEvent.VK_F)) {
+                    model.activateAbility(key == KeyEvent.VK_F && model.cooperative ? 1 : 0); repaint(); return;
+                }
                 if (key == KeyEvent.VK_UP || !model.cooperative && (key == KeyEvent.VK_W || key == KeyEvent.VK_SPACE)) jumpOne = true;
                 if (model.cooperative && key == KeyEvent.VK_W) jumpTwo = true;
                 if (key == KeyEvent.VK_P && started && !labOpen) { paused = !paused; clearInput(); }
@@ -51,7 +60,9 @@ public final class GamePanel extends JPanel {
         addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent event) {
                 if (!choosing) return;
-                int mx = event.getX() * 1000 / Math.max(1, getWidth()), my = event.getY() * 600 / Math.max(1, getHeight());
+                Point logical = Viewport.fit(getWidth(), getHeight()).toLogical(event.getX(), event.getY());
+                if (logical == null) return;
+                int mx = logical.x, my = logical.y;
                 for (int i = 0; i < Explorer.values().length; i++)
                     if (new Rectangle(25 + i * 160, 225, 150, 215).contains(mx, my)) model.selectExplorer(selectionPlayer, i);
                 if (new Rectangle(25, 158, 265, 37).contains(mx, my) && (!started || model.won || model.gameOver)) toggleMode();
@@ -68,8 +79,10 @@ public final class GamePanel extends JPanel {
             while (accumulator >= 1.0 / 60) {
                 if (started && !paused && !labOpen && !choosing) {
                     model.tick(new GameModel.Input(keys.contains(KeyEvent.VK_LEFT) || !model.cooperative && keys.contains(KeyEvent.VK_A),
-                                    keys.contains(KeyEvent.VK_RIGHT) || !model.cooperative && keys.contains(KeyEvent.VK_D), jumpOne),
-                            new GameModel.Input(keys.contains(KeyEvent.VK_A), keys.contains(KeyEvent.VK_D), jumpTwo));
+                                    keys.contains(KeyEvent.VK_RIGHT) || !model.cooperative && keys.contains(KeyEvent.VK_D), jumpOne,
+                                    keys.contains(KeyEvent.VK_UP) || !model.cooperative && (keys.contains(KeyEvent.VK_W) || keys.contains(KeyEvent.VK_SPACE)),
+                                    keys.contains(KeyEvent.VK_DOWN) || !model.cooperative && keys.contains(KeyEvent.VK_S)),
+                            new GameModel.Input(keys.contains(KeyEvent.VK_A), keys.contains(KeyEvent.VK_D), jumpTwo, keys.contains(KeyEvent.VK_W), keys.contains(KeyEvent.VK_S)));
                 }
                 jumpOne = jumpTwo = false; accumulator -= 1.0 / 60;
             }
@@ -101,7 +114,9 @@ public final class GamePanel extends JPanel {
     @Override protected void paintComponent(Graphics original) {
         super.paintComponent(original);
         Graphics2D g = (Graphics2D)original.create();
-        g.scale(getWidth() / 1000.0, getHeight() / 600.0);
+        Viewport viewport = Viewport.fit(getWidth(), getHeight());
+        g.translate(viewport.left(), viewport.top()); g.scale(viewport.scale(), viewport.scale());
+        g.clipRect(0, 0, 1000, 600);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         RegionTheme theme = RegionTheme.ALL[model.region()];
         g.setPaint(new GradientPaint(0, 0, theme.sky(), 0, 600, theme.horizon())); g.fillRect(0, 0, 1000, 600);
@@ -159,6 +174,11 @@ public final class GamePanel extends JPanel {
             g.setColor(Color.WHITE); g.fillRect(r.x + 5, r.y + 6, 6, 6); g.fillRect(r.x + 19, r.y + 6, 6, 6);
             g.setColor(new Color(30, 28, 57)); g.fillRect(r.x + 8, r.y + 8, 3, 4); g.fillRect(r.x + 19, r.y + 8, 3, 4);
         }
+        for (GameModel.Ball ball : model.balls) {
+            g.setColor(Color.WHITE); g.fillOval((int)ball.x - 7, (int)ball.y - 7, 14, 14);
+            g.setColor(new Color(30, 40, 55)); g.fillRect((int)ball.x - 2, (int)ball.y - 2, 5, 5);
+            g.drawOval((int)ball.x - 7, (int)ball.y - 7, 14, 14);
+        }
         for (Rectangle heart : model.hearts) {
             g.setColor(new Color(245, 89, 121));
             g.fillRect(heart.x, heart.y + 3, 10, 10); g.fillRect(heart.x + 14, heart.y + 3, 10, 10);
@@ -182,6 +202,8 @@ public final class GamePanel extends JPanel {
             model.first.explorer.draw(g, (int)model.first.x, (int)model.first.y, 1);
             if (model.cooperative) model.second.explorer.draw(g, (int)model.second.x, (int)model.second.y, 1);
         }
+        drawAbilityEffect(g, model.first, camera);
+        if (model.cooperative) drawAbilityEffect(g, model.second, camera);
         if (model.cooperative) {
             label(g, "P1", (int)model.first.x, (int)model.first.y - 8, 11, Color.WHITE);
             label(g, "P2", (int)model.second.x, (int)model.second.y - 8, 11, new Color(255, 211, 110));
@@ -194,8 +216,10 @@ public final class GamePanel extends JPanel {
                 + "   TRECHO " + (model.level + 1) + "/10", 485, 29, 16, Color.WHITE);
         label(g, "API " + (model.apiSolved() ? "OK" : "—") + "   LÓGICA " + (model.logicSolved() ? "OK" : "—")
                 + (model.cooperative ? "   CORDA " + (int)model.ropeDistance() + "/500" : "   SOLO"), 485, 58, 15, new Color(184, 205, 222));
-        label(g, model.cooperative ? "P1: ← → ↑ / Enter    P2: A D W / E    P: pausa    C na pausa: personagens"
-                : "A/D ou ←/→: mover    W/↑/Espaço: salto    E/Enter: central    P: pausa", 25, 580, 15, Color.WHITE);
+        label(g, model.cooperative ? "P1: ← → ↑ / Enter / K    P2: A D W / E / F    Voo: ↑↓ ou W/S    P: pausa    F11: tela cheia"
+                : "A/D ou ←/→: mover    W/↑/Espaço: salto    E/Enter: central    F/K: especial    P: pausa    F11: tela cheia", 20, 568, 13, Color.WHITE);
+        label(g, "P1 " + abilityStatus(model.first), 20, 590, 13, new Color(108, 239, 202));
+        if (model.cooperative) label(g, "P2 " + abilityStatus(model.second), 510, 590, 13, new Color(255, 211, 110));
         if (choosing) drawSelection(g);
         else if (model.won) overlay(g, "DEZ HORIZONTES RESTAURADOS", "As duas centrais de cada região voltaram a responder.",
                 "Uma nova expedição trará outra ordem e novos desafios.", "R: nova expedição • C: escolher personagens");
@@ -204,20 +228,24 @@ public final class GamePanel extends JPanel {
         else if (paused) overlay(g, "EM ABRIGO", "O percurso e os desafios desta expedição estão preservados.",
                 "Reúna as moedas e restabeleça as centrais de API e de lógica.", "P: continuar • C: personagens • N: nova expedição");
         else if (model.nearTerminal(0) || model.nearTerminal(1)) {
-            String message = !model.centralReady() ? "Faltam " + model.remainingCoins() + " moedas para ativar as centrais."
-                    : model.cooperative && !model.canUseTerminal(0) && !model.canUseTerminal(1) ? "Aproxime os dois exploradores da mesma central."
-                    : "Enter / E: conectar • API e lógica devem ser concluídas.";
+            int central = model.nearTerminal(0) ? 0 : 1;
+            String message = central == 1 && !model.apiSolved() ? "Ative primeiro a central de API no meio da rota."
+                    : !model.centralReady(central) ? "Faltam " + (central == 0 ? model.checkpointCoinsRemaining() : model.remainingCoins())
+                            + " moedas " + (central == 0 ? "desta metade para ativar o checkpoint." : "para liberar a central final.")
+                    : !model.canUseTerminal(central) ? "Aproxime os dois exploradores desta central."
+                    : central == 0 && model.apiSolved() ? "Checkpoint ativo. Siga até a central final."
+                    : "Enter / E: " + (central == 0 ? "restabelecer API e ativar checkpoint." : "resolver lógica e liberar a próxima região.");
             label(g, message, 25, 108, 16, Color.WHITE);
-        } else label(g, "Colete as moedas • corações: +1 energia • duas centrais no fim da rota", 25, 108, 14, theme.accent());
+        } else label(g, "API no meio: checkpoint • lógica no final: próxima região • F/K: habilidade", 25, 108, 14, theme.accent());
         g.dispose();
     }
     private void drawCentral(Graphics2D g, int index, int x) {
         boolean solved = index == 0 ? model.apiSolved() : model.logicSolved();
         g.setColor(new Color(14, 26, 45)); g.fillRect(x - 15, 430, 58, 60);
-        g.setColor(solved ? new Color(116, 238, 160) : model.centralReady() ? new Color(100, 210, 240) : new Color(115, 125, 140));
+        g.setColor(solved ? new Color(116, 238, 160) : model.centralReady(index) ? new Color(100, 210, 240) : new Color(115, 125, 140));
         g.fillRect(x - 8, 438, 44, 26);
         label(g, solved ? "OK" : index == 0 ? "{ }" : "01", x, 457, 16, new Color(14, 26, 45));
-        label(g, index == 0 ? "API" : "LÓGICA", x - 5, 415, 14, Color.WHITE);
+        label(g, index == 0 ? "API • CHECKPOINT" : "LÓGICA • SAÍDA", x - 55, 415, 12, Color.WHITE);
     }
     private void drawSelection(Graphics2D g) {
         g.setColor(new Color(7, 16, 30, 245)); g.fillRect(0, 82, 1000, 468);
@@ -234,13 +262,43 @@ public final class GamePanel extends JPanel {
             label(g, "" + (explorer.ordinal() + 1) + (p1 ? "  P1" : "") + (p2 ? "  P2" : ""), cx + 10, 247, 13, Color.WHITE);
             explorer.draw(g, cx + 33, 262, 3);
             label(g, explorer.displayName, cx + 12, 402, 22, Color.WHITE);
-            label(g, explorer.subtitle, cx + 12, 425, 12, new Color(184, 205, 222));
+            label(g, explorer.abilityName(), cx + 10, 421, 11, new Color(184, 205, 222));
+            label(g, explorer.abilitySummary(), cx + 10, 436, 10, new Color(184, 205, 222));
         }
         label(g, model.cooperative ? "Energia compartilhada • corda de 500 unidades • cheguem juntos às centrais e à saída"
-                : "Reúna todas as moedas. Complete API e lógica para liberar cada passagem.", 25, 462, 14, Color.WHITE);
+                : "API no meio salva o percurso. Lógica no final libera a próxima região.", 25, 462, 14, Color.WHITE);
         g.setColor(new Color(108, 239, 202)); g.fillRect(300, 475, 400, 42);
         label(g, started && !model.won && !model.gameOver ? "ENTER • Retomar travessia" : "ENTER • Iniciar travessia", 365, 503, 18, new Color(9, 25, 35));
-        label(g, "Mesmas habilidades para todos • P pausa • N na pausa sorteia uma nova expedição", 190, 539, 14, new Color(184, 205, 222));
+        label(g, "Especiais: P1 K / P2 F • Recarga 20 s • F11: tela cheia • N na pausa: nova expedição", 190, 539, 14, new Color(184, 205, 222));
+    }
+    private static String abilityStatus(GameModel.Player p) {
+        String state = p.abilityTicks > 0 ? "ATIVA " + ((p.abilityTicks + 59) / 60) + " s"
+                : p.cooldownTicks > 0 ? "recarga " + ((p.cooldownTicks + 59) / 60) + " s" : "PRONTA";
+        return p.explorer.abilityName() + " • " + state;
+    }
+    private static void drawAbilityEffect(Graphics2D g, GameModel.Player p, int camera) {
+        int x = (int)p.x, y = (int)p.y;
+        if (p.active(Explorer.CRIS)) {
+            g.setColor(new Color(255, 226, 112, 110)); g.fillOval(x - 10, y - 10, 48, 58);
+            g.setColor(new Color(255, 241, 172)); g.drawOval(x - 10, y - 10, 48, 58);
+        } else if (p.active(Explorer.NEY)) {
+            g.setColor(new Color(241, 224, 78, 170));
+            for (int i = 0; i < 3; i++) g.drawLine(x - 35, y + 8 + i * 10, x - 5, y + 8 + i * 10);
+        } else if (p.active(Explorer.VIVI)) {
+            g.setColor(new Color(193, 207, 230)); g.fillRect(x - 10, y + 20, 48, 9);
+            g.setColor(new Color(77, 116, 157)); g.fillRect(x - 13, y + 26, 15, 7); g.fillRect(x + 26, y + 26, 15, 7);
+            g.setColor(new Color(255, 175, 65)); g.fillRect(x - 9, y + 33, 6, 12); g.fillRect(x + 30, y + 33, 6, 12);
+        }
+        if (p.effectTicks > 0 && p.explorer == Explorer.NITA) {
+            g.setColor(new Color(255, 128, 67, p.effectTicks * 2)); g.fillRect(camera, 82, 1000, 468);
+            int radius = (45 - p.effectTicks) * 12;
+            g.setColor(new Color(255, 220, 130, p.effectTicks * 5)); g.drawOval(x + 14 - radius, y + 19 - radius, radius * 2, radius * 2);
+        } else if (p.effectTicks > 0 && p.explorer == Explorer.DILA) {
+            g.setColor(new Color(126, 244, 231, p.effectTicks * 5));
+            int radius = 40 + p.effectTicks * 5;
+            g.drawOval(x + 14 - radius, y + 19 - radius, radius * 2, radius * 2);
+            label(g, "ÍMÃ", x - 5, y - 20, 14, new Color(126, 244, 231));
+        }
     }
     private static void label(Graphics2D g, String text, int x, int y, int size, Color color) {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, size)); g.setColor(color); g.drawString(text, x, y);

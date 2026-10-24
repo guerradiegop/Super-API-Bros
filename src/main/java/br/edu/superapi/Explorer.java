@@ -3,7 +3,7 @@ package br.edu.superapi;
 import java.awt.Color;
 import java.awt.Graphics2D;
 
-/** Original, code-drawn pixel avatars; all share the same physics and hitbox. */
+/** Original pixel avatars with a shared hitbox and individual special abilities. */
 public enum Explorer {
     NEY("Ney", "O driblador", 0xb8794d, 0xe5c16a, 0xf3ce36),
     LEO("Leo", "O maestro", 0xe3b18b, 0x57352a, 0x80cbe5),
@@ -17,6 +17,26 @@ public enum Explorer {
     Explorer(String name, String subtitle, int skin, int hair, int shirt) {
         this.displayName = name; this.subtitle = subtitle;
         this.skin = new Color(skin); this.hair = new Color(hair); this.shirt = new Color(shirt);
+    }
+    public String abilityName() {
+        return switch (this) {
+            case NITA -> "Ataque explosivo";
+            case DILA -> "Ímã coletor";
+            case NEY -> "Super velocidade";
+            case CRIS -> "Invencibilidade";
+            case VIVI -> "Voar com jatinho";
+            case LEO -> "Bolada na cara";
+        };
+    }
+    public String abilitySummary() {
+        return switch (this) {
+            case NITA -> "Limpa a tela";
+            case DILA -> "Atrai itens da tela";
+            case NEY -> "2,5× por 10 s";
+            case CRIS -> "Proteção por 5 s";
+            case VIVI -> "Voo por 10 s";
+            case LEO -> "5 bolas guiadas";
+        };
     }
     private static void pixels(Graphics2D g, Color color, int x, int y, int w, int h) {
         g.setColor(color); g.fillRect(x * 2, y * 2, w * 2, h * 2);

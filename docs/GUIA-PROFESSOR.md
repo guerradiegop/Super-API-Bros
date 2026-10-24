@@ -8,12 +8,14 @@ Montar requisições HTTP, interpretar status e JSON, distinguir autenticação 
 
 1. Apresente cliente, servidor, endpoint e contrato. A aplicação faz HTTP real para um servidor local, sem internet. Os recursos são demonstrativos, sem persistência.
 2. Na seleção, escolha solo ou dupla com M. P1 usa as setas, P2 usa A/D/W. A corda equivale à metade da tela; os dois devem chegar às centrais e à saída.
-3. Colete as 36 moedas da região. Corações concedem +1 energia até 7, cada coração uma única vez na fase; perder energia não os restaura. Na dupla, energia e itens são compartilhados.
+3. Colete as 15 moedas da primeira metade para acessar a central API e as outras 15 antes da central final. Corações concedem +1 energia até 7, cada coração uma única vez na fase; perder energia não os restaura. Na dupla, energia e itens são compartilhados.
 4. Na central API, provoque um erro e compare com a resposta correta. Examine método, caminho, cabeçalhos, corpo, status e o campo solicitado. Só uma requisição válida seguida da interpretação correta restabelece a central.
 5. Na central lógica, escreva os estados intermediários do algoritmo. Uma resposta incorreta apresenta dica, sem penalidade. Os temas incluem laços, condicionais, listas, binário, booleanos, filas, pilhas, troca de valores e busca.
-6. Explique por que concluir uma central não abre o portal. Ambas são necessárias, em qualquer ordem, e o checkpoint preserva a central já resolvida.
+6. Explique por que concluir uma central não abre o portal. A API intermediária ativa o checkpoint; a lógica final exige a API e todas as moedas para liberar a saída. O checkpoint preserva os itens coletados e a central já resolvida.
 
 As fases, protocolos e tipos de lógica são embaralhados em cada nova partida; os números dos exercícios também variam. Não existe gabarito por número de fase. Pause com P para discussão; N na pausa inicia outra expedição com novo sorteio. A mesma partida preserva os desafios após dano ou pausa.
+
+Use K para a habilidade de P1 e F para a de P2 (no solo, ambos funcionam). Cada explorador tem um efeito diferente, com recarga de 20 segundos; veja a tabela no README. A corda continua valendo durante voo e super velocidade. Discuta o momento de usar os poderes. F11 alterna tela cheia com proporções preservadas; Esc sai. A troca de tela pausa a exploração e P retoma.
 
 ## Protocolos e campos esperados
 
@@ -42,4 +44,4 @@ Consulte [API.md](API.md) para credenciais, corpos e erros. A credencial `aluno-
 
 ## Avaliação
 
-Peça uma requisição com erro e sua correção, uma explicação da resposta JSON e um registro passo a passo do desafio de lógica. Na dupla, alternem quem explica cada central. Dez regiões de 8.640 unidades demandam várias sessões; não é necessário concluir toda a campanha em uma única aula.
+Peça uma requisição com erro e sua correção, uma explicação da resposta JSON e um registro passo a passo do desafio de lógica. Na dupla, alternem quem explica cada central. Dez regiões de 7.344 unidades demandam várias sessões; não é necessário concluir toda a campanha em uma única aula.

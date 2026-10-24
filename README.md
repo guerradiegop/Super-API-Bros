@@ -18,12 +18,15 @@ Também há `run.bat` e `sh run.sh`. O JAR está incluído. Após editar fontes,
 |---|---|---|
 | Mover | A/D ou ←/→ | P1: ←/→; P2: A/D |
 | Saltar | W, ↑ ou Espaço | P1: ↑; P2: W |
+| Habilidade | K ou F | P1: K; P2: F |
+| Voo: subir/descer | ↑/↓ ou W/S | P1: ↑/↓; P2: W/S |
+| Tela cheia | F11; Esc sai | Igual |
 | Conectar à central | E ou Enter | Enter ou E, com os dois próximos |
 | Pausar/continuar | P | P, pausa ambos |
 | Escolher personagens | C na pausa ou no encerramento | C na pausa ou no encerramento |
 | Nova expedição | N na pausa; R no encerramento | Igual |
 
-Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só pode mudar antes de iniciar uma expedição. As setas escolhem P1; A/D escolhem P2 na dupla. **Tab** alterna o jogador selecionado para os atalhos **1–6** ou cliques nos retratos. **Enter** confirma. Esc fecha a seleção aberta durante a pausa, mantendo a pausa. Todos têm a mesma física e colisões; aparência não concede vantagens.
+Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só pode mudar antes de iniciar uma expedição. As setas escolhem P1; A/D escolhem P2 na dupla. **Tab** alterna o jogador selecionado para os atalhos **1–6** ou cliques nos retratos. **Enter** confirma. Esc fecha a seleção aberta durante a pausa, mantendo a pausa. Todos têm o mesmo tamanho de colisão, mas cada explorador possui uma habilidade própria. Trocar personagem cancela o efeito ativo e mantém a recarga.
 
 | Explorador | Referência visual |
 |---|---|
@@ -36,14 +39,29 @@ Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só 
 
 São caricaturas originais desenhadas em código, sem fotografias ou assets externos.
 
+### Habilidades
+
+| Explorador | Habilidade | Efeito |
+|---|---|---|
+| Nita | Ataque explosivo | Elimina todos os inimigos visíveis na área de exploração |
+| Dila | Ímã coletor | Coleta moedas e corações visíveis; corações excedentes permanecem quando a energia chega a 7 |
+| Ney | Super velocidade | Velocidade e alcance horizontal do salto aumentam 150% (2,5×) por 10 segundos |
+| Cris | Invencibilidade | Proteção contra inimigos e quedas por 5 segundos; uma queda retorna ao checkpoint ativo ou início sem gastar energia |
+| Vivi | Voar com jatinho | Voo controlável por 10 segundos; solte os comandos verticais para pairar |
+| Leo | Bolada na cara | Dispara até 5 bolas guiadas, uma para cada um dos 5 inimigos vivos mais próximos |
+
+A recarga é de **20 segundos a partir da ativação**, independente por jogador. Pausas, seleção e desafios congelam os temporizadores. Dano cancela efeitos ativos, mas não remove a recarga; uma nova fase reinicia as habilidades. Na dupla, a corda continua limitando voo e super velocidade. A proteção de Cris não protege o parceiro contra inimigos.
+
+A janela pode ser redimensionada. **F11** alterna tela cheia no monitor atual, e **Esc** retorna à janela. A imagem mantém a proporção 5:3, com barras nas bordas quando necessário; os cliques acompanham a escala. Alternar a tela durante a exploração pausa a expedição: pressione **P** para continuar.
+
 ## Campanha e regras
 
-* **10 fases de 8.640 unidades**: aumento exato de **80%** sobre as 4.800 anteriores. Todas as rotas foram reconstruídas em 12 blocos com variantes limitadas pela física de salto, 36 plataformas elevadas e 12 fendas.
-* **36 moedas por fase**, acessíveis antes das centrais. Todas devem ser coletadas para acessar os desafios; a contagem é compartilhada na dupla.
-* **Duas centrais e dois desafios por fase:** uma de API (requisição HTTP e interpretação do JSON) e outra de lógica computacional. Podem ser resolvidas em qualquer ordem. O portal exige ambas concluídas; cancelar, falhar ou acertar apenas uma não abre a passagem.
+* **10 fases de 7.344 unidades**: redução exata de **15%** sobre as 8.640 anteriores. Cada rota tem 10 blocos, 30 plataformas elevadas e 10 fendas, com corredores seguros junto às centrais. As populações de inimigos foram preservadas.
+* **30 moedas por fase**: 15 antes da central intermediária e 15 na segunda metade. A central intermediária exige as moedas da primeira metade; a final exige todas. A contagem é compartilhada na dupla.
+* **Duas centrais e dois desafios por fase:** uma de API (requisição HTTP e interpretação do JSON) e outra de lógica computacional. A central API fica no meio exato (3.672 unidades) e ativa o checkpoint ao ser concluída; a central lógica fica no final e libera a próxima região. A lógica exige a API concluída. O portal exige ambas concluídas; cancelar, falhar ou acertar apenas uma não abre a passagem.
 * **Energia inicial 3, máximo 7.** Há quatro corações por fase. Cada um concede +1, é removido ao coletar e não reaparece após perder energia. No máximo de energia, o coração permanece para uma coleta posterior. Corações e moedas são compartilhados na dupla.
 * Contato lateral com inimigos ou queda custa uma energia. Na dupla, o dano é compartilhado e os dois reaparecem juntos com proteção temporária, evitando cobrança dupla no mesmo passo. Saltar sobre inimigos os derrota.
-* A primeira central concluída ativa o checkpoint no final da rota. Moedas, corações consumidos e centrais resolvidas permanecem após dano; plataformas móveis/frágeis retornam ao estado inicial. Uma fase nova restaura os itens e os dois desafios.
+* Concluir a central API ativa o checkpoint no meio da rota. Moedas, corações consumidos e centrais resolvidas permanecem após dano; plataformas móveis/frágeis retornam ao estado inicial. Uma fase nova restaura os itens e os dois desafios.
 * A corda limita a **distância entre os personagens a 500 unidades**, metade da largura visível de 1.000 unidades (não metade do mapa). Movimento que esticaria a corda é limitado; os parceiros precisam avançar juntos. A câmera acompanha o ponto médio. Ambos devem se aproximar da central e atravessar a saída.
 
 ## Regiões e inimigos
@@ -82,12 +100,13 @@ sh build.sh test
 sh run.sh
 ```
 
-No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os testes verificam HTTP real, lógica, reprodutibilidade do sorteio, rotas em diferentes posições dos elevadores, cooperação, corda, moedas, corações, checkpoints, progressão e controles. `AllTests --render` gera capturas headless em `build/` para inspeção visual. A automação do GitHub compila e testa em Windows, Linux e macOS.
+No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os testes verificam HTTP real, lógica, reprodutibilidade do sorteio, rotas em diferentes posições dos elevadores, cooperação, corda, moedas, corações, checkpoints, progressão, controles, habilidades, durações, recargas e proporções. `AllTests --render` gera capturas headless em `build/` para inspeção visual. A automação do GitHub compila e testa em Windows, Linux e macOS.
 
 ## Organização
 
 * `GameModel`: estado da campanha, geração limitada dos mapas, física, itens e cooperação.
 * `GamePanel`, `Explorer`, `RegionTheme`, `TerrainPlatform`: interface, avatares e desenho procedural.
+* `Viewport`, `WindowMode`: escala proporcional, coordenadas de clique e alternância de tela cheia.
 * `Lesson`, `AcademyServer`, `ApiClient`, `LabDialog`: contratos e integração HTTP.
 * `LogicChallenge`, `LogicDialog`: geração e interface de raciocínio computacional.
 * `Json`: parser restrito a objetos com valores string, não um parser JSON genérico.

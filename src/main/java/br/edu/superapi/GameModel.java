@@ -6,9 +6,10 @@ import java.util.*;
 
 /** Fixed-step simulation shared by solo and local co-op. */
 public final class GameModel {
-    public static final int WIDTH = 8640, VIEW_WIDTH = 1000, ROPE_LENGTH = VIEW_WIDTH / 2;
-    public static final int FLOOR = 490, TERMINAL_X = WIDTH - 420, LOGIC_X = WIDTH - 250;
+    public static final int WIDTH = 7344, VIEW_WIDTH = 1000, ROPE_LENGTH = VIEW_WIDTH / 2;
+    public static final int FLOOR = 490, TERMINAL_X = WIDTH / 2, LOGIC_X = WIDTH - 250;
     public static final int GATE_X = WIDTH - 130, EXIT_X = WIDTH - 100, MAX_ENERGY = 7, REGION_COUNT = 10;
+    public static final int BLOCK_COUNT = 10, ABILITY_COOLDOWN = 20 * 60;
     public static final String[] REGION_NAMES = {"Jardim dos endpoints", "Fortaleza das chaves", "Oficina das pontes",
             "Cavernas de cristal", "Deserto dos sinais", "Cidade suspensa", "Cordilheira branca", "Horizonte das cinzas",
             "Arquipélago das marés", "Reator da aurora"};
@@ -16,10 +17,13 @@ public final class GameModel {
         public double x, y, vy;
         public boolean grounded;
         public Explorer explorer;
+        public int abilityTicks, cooldownTicks, effectTicks;
+        public boolean active(Explorer ability) { return explorer == ability && abilityTicks > 0; }
         Player(Explorer explorer) { this.explorer = explorer; }
         public Rectangle2D.Double bounds() { return new Rectangle2D.Double(x, y, 28, 38); }
     }
-    public record Input(boolean left, boolean right, boolean jump) {
+    public record Input(boolean left, boolean right, boolean jump, boolean flyUp, boolean flyDown) {
+        public Input(boolean left, boolean right, boolean jump) { this(left, right, jump, jump, false); }
         public static final Input NONE = new Input(false, false, false);
     }
     public final Player first = new Player(Explorer.NEY), second = new Player(Explorer.LEO);
@@ -32,10 +36,14 @@ public final class GameModel {
     private LogicChallenge[] logic;
     public final List<Rectangle> platforms = new ArrayList<>(), collectibles = new ArrayList<>(), hearts = new ArrayList<>();
     public final List<Enemy> enemies = new ArrayList<>();
+    public final List<Ball> balls = new ArrayList<>();
     public GameModel() { restart(); }
     public GameModel(long seed) { restart(seed); }
     public void selectExplorer(int player, int index) {
-        (player == 0 ? first : second).explorer = Explorer.values()[Math.floorMod(index, Explorer.values().length)];
+        Player selected = player == 0 ? first : second;
+        Explorer next = Explorer.values()[Math.floorMod(index, Explorer.values().length)];
+        if (selected.explorer != next) { selected.abilityTicks = selected.effectTicks = 0; }
+        selected.explorer = next; // Switching appearance does not bypass the cooldown.
     }
     public int region() { return order[level]; }
     public long seed() { return seed; }
@@ -62,14 +70,18 @@ public final class GameModel {
         for (int i = 0; i < REGION_COUNT; i++) logic[i] = LogicChallenge.create(kinds[i], random);
         level = 0; lives = 3; coins = 0; won = gameOver = false; load();
     }
+    public static int blockStart(int block) {
+        return (block < 5 ? 140 : TERMINAL_X + 140) + (block % 5) * 640;
+    }
     public void load() {
         apiSolved = logicSolved = false;
-        platforms.clear(); collectibles.clear(); hearts.clear(); enemies.clear();
+        platforms.clear(); collectibles.clear(); hearts.clear(); enemies.clear(); balls.clear();
+        for (Player p : List.of(first, second)) p.abilityTicks = p.cooldownTicks = p.effectTicks = 0;
         Random random = new Random(seed ^ (region() * 7919L));
         int from = 0;
-        // Twelve hand-bounded blocks. Random variants never exceed tested jump limits.
-        for (int block = 0; block < 12; block++) {
-            int start = 240 + block * 640, gap = start + 500, gapWidth = 100 + (region() % 2) * 20;
+        // Ten hand-bounded blocks around the midpoint checkpoint. Random variants never exceed tested jump limits.
+        for (int block = 0; block < BLOCK_COUNT; block++) {
+            int start = blockStart(block), gap = start + 500, gapWidth = 100 + (region() % 2) * 20;
             platforms.add(new Rectangle(from, FLOOR, gap - from, 100)); from = gap + gapWidth;
             int variant = random.nextInt(3);
             for (int step = 0; step < 3; step++) {
@@ -89,25 +101,28 @@ public final class GameModel {
                 default -> EnemyKind.CRAWLER;
             };
             enemies.add(new Enemy(start + 20, start + 180, FLOOR - 28, 1.2 + random.nextDouble() * .4, ground));
-            if (block % 3 == 2) hearts.add(new Rectangle(start + 70, FLOOR - 30, 24, 24));
+            if (block % 5 == 1 || block % 5 == 3) hearts.add(new Rectangle(start + 70, FLOOR - 30, 24, 24));
         }
         platforms.add(new Rectangle(from, FLOOR, WIDTH - from, 100));
         // ceil(previous population * 1.8), with 22 for the two new regions.
         int population = region() < 6 ? 20 : region() == 6 ? 17 : 22;
         for (int i = 0; enemies.size() < population; i++) {
-            int start = 240 + i * 640;
+            int block = i % BLOCK_COUNT, step = i < BLOCK_COUNT ? 0 : 2;
+            int start = blockStart(block) + step * 160;
             EnemyKind kind = region() == 6 ? EnemyKind.FROST_WISP : region() == 7 || region() == 9
                     ? EnemyKind.SCAVENGER : region() == 5 || region() == 8 ? EnemyKind.DRONE : EnemyKind.CRAWLER;
-            int baseY = kind == EnemyKind.DRONE || kind == EnemyKind.FROST_WISP ? 245 : 382;
-            // The third platform may be high; ground patrols use the first platform instead.
+            int baseY = kind == EnemyKind.DRONE || kind == EnemyKind.FROST_WISP ? 245 : platforms.get(block * 4 + 1 + step).y - 28;
             enemies.add(new Enemy(start + 10, start + 85, baseY, 1.1, kind));
         }
         levelCoinTotal = collectibles.size(); respawn();
     }
     private List<Player> players() { return cooperative ? List.of(first, second) : List.of(first); }
-    private void respawn() {
+    private void respawn() { respawn(true); }
+    private void respawn(boolean cancelAbilities) {
+        balls.clear();
+        if (cancelAbilities) for (Player p : List.of(first, second)) p.abilityTicks = p.effectTicks = 0;
         for (Rectangle platform : platforms) if (platform instanceof TerrainPlatform terrain) terrain.resetMotion();
-        double checkpoint = apiSolved || logicSolved ? TERMINAL_X - 70 : 70;
+        double checkpoint = apiSolved ? TERMINAL_X - 70 : 70;
         first.x = checkpoint; second.x = checkpoint + 45;
         for (Player p : List.of(first, second)) { p.y = 420; p.vy = 0; p.grounded = false; }
         invincible = 90;
@@ -115,13 +130,16 @@ public final class GameModel {
     public int remainingCoins() { return collectibles.size(); }
     public int levelCoinTotal() { return levelCoinTotal; }
     public int collectedLevelCoins() { return levelCoinTotal - remainingCoins(); }
-    public boolean centralReady() { return collectibles.isEmpty(); }
+    public int checkpointCoinsRemaining() { return (int)collectibles.stream().filter(c -> c.x < TERMINAL_X).count(); }
+    public boolean centralReady(int central) {
+        return central == 0 ? checkpointCoinsRemaining() == 0 : apiSolved && collectibles.isEmpty();
+    }
     public boolean nearTerminal(int central) {
         int tx = central == 0 ? TERMINAL_X : LOGIC_X;
         return players().stream().anyMatch(p -> Math.abs(p.x - tx) < 80 && p.y > 370);
     }
     public boolean canUseTerminal(int central) {
-        if (central < 0 || central > 1 || won || gameOver || !centralReady() || !nearTerminal(central)) return false;
+        if (central < 0 || central > 1 || won || gameOver || !centralReady(central) || !nearTerminal(central)) return false;
         int tx = central == 0 ? TERMINAL_X : LOGIC_X;
         return !cooperative || players().stream().allMatch(p -> Math.abs(p.x - tx) < 180 && p.y > 370);
     }
@@ -138,6 +156,14 @@ public final class GameModel {
     public void tick(boolean left, boolean right, boolean jump) { tick(new Input(left, right, jump), Input.NONE); }
     public void tick(Input one, Input two) {
         if (won || gameOver) return;
+        tickWorld(one, two);
+        for (Player p : players()) {
+            if (p.abilityTicks > 0) p.abilityTicks--;
+            if (p.cooldownTicks > 0) p.cooldownTicks--;
+            if (p.effectTicks > 0) p.effectTicks--;
+        }
+    }
+    private void tickWorld(Input one, Input two) {
         if (invincible > 0) invincible--;
         double[] old = {first.x, first.y, second.x, second.y};
         for (Rectangle platform : platforms) if (platform instanceof TerrainPlatform terrain) {
@@ -168,23 +194,29 @@ public final class GameModel {
             for (Player p : players()) if (enemy.alive && p.bounds().intersects(enemy.bounds())) {
                 double bottom = p == first ? firstBottom : secondBottom;
                 if (p.vy > 0 && bottom <= oldTop + 8) { enemy.alive = false; p.vy = -8; }
-                else if (invincible == 0) { hurt(); return; }
+                else if (invincible == 0 && !p.active(Explorer.CRIS)) { hurt(); return; }
             }
         }
-        if (players().stream().anyMatch(p -> p.y > 650)) { hurt(); return; }
+        balls.removeIf(ball -> !ball.tick());
+        if (players().stream().anyMatch(p -> p.y > 650 && !p.active(Explorer.CRIS))) { hurt(); return; }
+        if (players().stream().anyMatch(p -> p.y > 650)) { respawn(false); return; }
         if (unlocked() && players().stream().allMatch(p -> p.x > EXIT_X)) {
             if (level == REGION_COUNT - 1) won = true; else { level++; load(); }
         }
     }
     private static void move(Player p, Input input, List<Rectangle> solids) {
-        double dx = (input.right ? 4.4 : 0) - (input.left ? 4.4 : 0);
+        double speed = p.active(Explorer.NEY) ? 11.0 : 4.4;
+        double dx = (input.right ? speed : 0) - (input.left ? speed : 0);
         if (input.jump && p.grounded) { p.vy = -12.5; p.grounded = false; }
         p.x = Math.max(0, Math.min(WIDTH - 28, p.x + dx));
         for (Rectangle solid : solids) if (p.bounds().intersects(solid)) {
             if (dx > 0) p.x = solid.x - 28; else if (dx < 0) p.x = solid.x + solid.width;
         }
         double oldBottom = p.y + 38;
-        p.vy = Math.min(p.vy + .55, 13); p.y += p.vy; p.grounded = false;
+        if (p.active(Explorer.VIVI)) p.vy = (input.flyDown ? 5.5 : 0) - (input.flyUp ? 5.5 : 0);
+        else p.vy = Math.min(p.vy + .55, 13);
+        p.y += p.vy; p.grounded = false;
+        if (p.active(Explorer.VIVI) && p.y < 90) { p.y = 90; p.vy = 0; }
         for (Rectangle solid : solids) if (p.bounds().intersects(solid)) {
             if (p.vy >= 0 && oldBottom <= solid.y + 1) { p.y = solid.y - 38; p.vy = 0; p.grounded = true; }
             else if (p.vy < 0) { p.y = solid.y + solid.height; p.vy = 0; }
@@ -211,6 +243,41 @@ public final class GameModel {
     private void setPositions(double[] old, double[] next, double t) {
         first.x = old[0] + (next[0] - old[0]) * t; first.y = old[1] + (next[1] - old[1]) * t;
         second.x = old[2] + (next[2] - old[2]) * t; second.y = old[3] + (next[3] - old[3]) * t;
+    }
+    public Rectangle2D.Double visibleArea() { return new Rectangle2D.Double(camera(), 82, VIEW_WIDTH, 468); }
+    public boolean activateAbility(int index) {
+        if (won || gameOver || index < 0 || index > 1 || index == 1 && !cooperative) return false;
+        Player p = index == 0 ? first : second;
+        if (p.cooldownTicks > 0) return false;
+        p.cooldownTicks = ABILITY_COOLDOWN; p.effectTicks = 45;
+        Rectangle2D visible = visibleArea();
+        switch (p.explorer) {
+            case NEY, VIVI -> p.abilityTicks = 600;
+            case CRIS -> p.abilityTicks = 300;
+            case NITA -> enemies.stream().filter(e -> e.alive && visible.intersects(e.bounds())).forEach(e -> e.alive = false);
+            case DILA -> {
+                collectibles.removeIf(coin -> { if (visible.intersects(coin)) { coins++; return true; } return false; });
+                hearts.removeIf(heart -> { if (lives < MAX_ENERGY && visible.intersects(heart)) { lives++; return true; } return false; });
+            }
+            case LEO -> enemies.stream().filter(e -> e.alive)
+                    .sorted(Comparator.comparingDouble(e -> Math.hypot(e.x + 15 - p.x - 14, e.bounds().getCenterY() - p.y - 19)))
+                    .limit(5).forEach(e -> balls.add(new Ball(p.x + 14, p.y + 19, e)));
+        }
+        return true;
+    }
+    public static final class Ball {
+        public double x, y;
+        public final Enemy target;
+        private int lifetime = WIDTH / 14 + 180;
+        Ball(double x, double y, Enemy target) { this.x = x; this.y = y; this.target = target; }
+        boolean tick() {
+            if (!target.alive || --lifetime <= 0) return false;
+            double dx = target.bounds().getCenterX() - x, dy = target.bounds().getCenterY() - y;
+            double distance = Math.hypot(dx, dy);
+            if (distance <= 20) { target.alive = false; return false; }
+            x += dx / distance * 14; y += dy / distance * 14;
+            return true;
+        }
     }
     private void hurt() { lives--; if (lives <= 0) gameOver = true; else respawn(); }
     public enum EnemyKind { CRAWLER, HOPPER, DRONE, SKATER, FROST_WISP, SCAVENGER }

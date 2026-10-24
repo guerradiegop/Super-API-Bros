@@ -16,7 +16,9 @@ public final class Main {
             JFrame window = new JFrame("Rede dos Horizontes");
             GamePanel game = new GamePanel(new ApiClient(server.baseUri()));
             window.setContentPane(game); window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            window.pack(); window.setLocationRelativeTo(null); window.setResizable(false);
+            window.pack(); window.setLocationRelativeTo(null); window.setResizable(true);
+            window.setMinimumSize(new java.awt.Dimension(640, 420));
+            game.setWindowMode(new WindowMode(window));
             window.setVisible(true); game.requestFocusInWindow();
         });
     }
