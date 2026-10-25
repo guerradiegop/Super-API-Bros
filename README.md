@@ -85,11 +85,30 @@ Placas frágeis avisam por rachaduras, cedem após 36 passos (0,6 s) e reaparece
 
 ## Sorteio e desafios
 
-Cada nova expedição sorteia, sem repetição, a ordem das dez regiões, a distribuição dos dez protocolos HTTP e os dez tipos de lógica. Os parâmetros dos exercícios de lógica e as variantes das plataformas também mudam. A ordem da nova expedição é diferente da anterior. Perder energia, pausar ou trocar aparência **não** sorteia novamente.
+Cada nova expedição sorteia, sem repetição, a ordem das dez regiões, **10 entre 25 protocolos HTTP** e **10 entre 25 tipos de lógica**, atribuídos às dez etapas. Os parâmetros dos exercícios de lógica e as variantes das plataformas também mudam. A ordem da nova expedição é diferente da anterior. Perder energia, pausar ou trocar aparência **não** sorteia novamente.
 
-Os protocolos HTTP incluem consulta de rota, chave autenticada, criação de ponte, clima, farol, remoção de interferência, aquecedor, purificador, marés e reator. Não ficam vinculados a uma região específica. As respostas são obtidas por `HttpClient.sendAsync` e `HttpServer`, com validação de método, caminho, status e JSON.
+Os protocolos HTTP incluem GET com filtros e paginação, POST de registros, PUT de configurações, PATCH de campos e DELETE de recursos, com contratos autenticados e públicos. Não ficam vinculados a uma região específica. As respostas são obtidas por `HttpClient.sendAsync` e `HttpServer`, com validação de método, caminho, status e JSON.
 
-A central de lógica usa acumuladores, condições, índices de listas, binário, expressões booleanas, filas, pilhas, laços, troca de variáveis e busca. Não executa código fornecido pelo usuário. Resposta errada apresenta uma dica e não custa energia.
+A central de lógica usa acumuladores, condições, índices de listas, binário, expressões booleanas, filas, pilhas, laços, troca de variáveis e busca, além de negação, disjunção, resto, divisão inteira, laços aninhados, mínimos/máximos, somas, duplicação, funções, contagem de pares, índices circulares, ordenação e atualização de memória. Não executa código fornecido pelo usuário. Resposta errada apresenta uma dica e não custa energia.
+
+## Música por região
+
+Dez composições originais em estilo 8-bit são sintetizadas localmente: onda de pulso na melodia, baixo triangular e percussão de ruído. Cada região tem uma partitura, tonalidade e andamento fixos, independentes da seed, dos desafios e da ordem da campanha. São loops de oito compassos. A música pausa em abrigos, seleção e centrais; ao retornar à mesma região, a composição continua sendo a mesma.
+
+| Região | Trilha |
+|---|---|
+| Jardim dos endpoints | Pulso verde |
+| Fortaleza das chaves | Chaves em marcha |
+| Oficina das pontes | Engrenagens |
+| Cavernas de cristal | Ecos prismáticos |
+| Deserto dos sinais | Sinais ao vento |
+| Cidade suspensa | Órbita suspensa |
+| Cordilheira branca | Flocos de sinal |
+| Horizonte das cinzas | Última frequência |
+| Arquipélago das marés | Corrente azul |
+| Reator da aurora | Aurora elétrica |
+
+**M durante a travessia ou pausa** liga/desliga a música; na seleção inicial, M continua alternando solo/dupla. Não precisa de arquivos de áudio externos nem internet. Se o computador não tiver saída de áudio disponível, a expedição continua silenciosamente.
 
 ## Compilar e testar
 
@@ -106,7 +125,7 @@ No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os test
 
 * `GameModel`: estado da campanha, geração limitada dos mapas, física, itens e cooperação.
 * `GamePanel`, `Explorer`, `RegionTheme`, `TerrainPlatform`: interface, avatares e desenho procedural.
-* `CentralViews`: telas das centrais com seções de instrução, resposta e ações, feedback em múltiplas linhas e rolagem em telas menores.
+* `CentralViews`: telas das centrais com seções de instrução, resposta e ações, feedback em múltiplas linhas e conteúdo simultâneo sem barras de rolagem.
 * `Viewport`, `WindowMode`: escala proporcional, coordenadas de clique e alternância de tela cheia.
 * `Lesson`, `AcademyServer`, `ApiClient`, `LabDialog`: contratos e integração HTTP.
 * `LogicChallenge`, `LogicDialog`: geração e interface de raciocínio computacional.

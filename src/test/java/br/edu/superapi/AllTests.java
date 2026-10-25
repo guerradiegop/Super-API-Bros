@@ -50,7 +50,7 @@ public final class AllTests {
                 catch (IllegalArgumentException expected) { checks++; }
             }
             String[] methods = {"GET", "PUT", "DELETE"};
-            String[] paths = {"/weather?region=crystal", "/beacon", "/interference"};
+            String[] paths = {"/weather?sensor=remote", "/beacon", "/interference"};
             for (int i = 0; i < 3; i++) {
                 var response = request(client, methods[i], paths[i], "Bearer aluno-api", "application/json", i == 1 ? "{\"signal\":\"on\"}" : "");
                 check(Lesson.ALL[i + 3].accepts(methods[i], paths[i], response), "Novo contrato " + i);
@@ -66,12 +66,12 @@ public final class AllTests {
             String[] bodies = {"", "", "{\"material\":\"wood\"}", "", "{\"signal\":\"on\"}", "", "{\"fuel\":\"thermal\"}", "{\"filter\":\"carbon\"}", "", "{\"cell\":\"solar\"}"};
             for (int i = 0; i < Lesson.ALL.length; i++) {
                 Lesson lesson = Lesson.ALL[i];
-                var response = request(client, lesson.method(), lesson.path(), "Bearer aluno-api", "application/json", bodies[i]);
+                var response = request(client, lesson.method(), lesson.path(), "Bearer aluno-api", "application/json", lesson.requestBody());
                 check(lesson.accepts(lesson.method(), lesson.path(), response), "Contrato HTTP " + i);
                 for (int other = 0; other < Lesson.ALL.length; other++) if (other != i)
                     check(!Lesson.ALL[other].accepts(lesson.method(), lesson.path(), response), "Sem liberação cruzada");
                 String badMethod = lesson.method().equals("GET") ? "POST" : "GET";
-                check(request(client, badMethod, lesson.path(), "Bearer aluno-api", "application/json", bodies[i]).statusCode() == 405, "405 para cada contrato");
+                check(request(client, badMethod, lesson.path(), "Bearer aluno-api", "application/json", lesson.requestBody()).statusCode() == 405, "405 para cada contrato");
             }
             check(request(client, "GET", "/tides?mode=high", "", "", "").statusCode() == 400, "Maré inválida");
             check(request(client, "POST", "/reactor", "", "application/json", "{}").statusCode() == 422, "Célula obrigatória");
@@ -273,6 +273,7 @@ public final class AllTests {
             }
             game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 2, "Reinício integral");
             AbilityTests.run();
+            ExpansionTests.run(client);
             testUI(client, args.length > 0 && args[0].equals("--render"));
         }
         System.out.println("OK: " + checks + " verificações (HTTP, lógica, mapas, corações, cooperação e seleção).");
@@ -288,7 +289,7 @@ public final class AllTests {
                 if (render) {
                     var apiView = new CentralViews.Api(Lesson.ALL[7], client.baseUri().toString());
                     apiView.output.setText("PUT /purifier\nHTTP 200 • 12 ms\nContent-Type: application/json\n\n{\"air\":\"clean\",\"gate\":\"open\"}");
-                    renderSurface(apiView, 960, 1040, "build/central-api.png");
+                    renderSurface(apiView, 1080, 620, "build/central-api.png");
                     var logicView = new CentralViews.Logic(LogicChallenge.create(3, new java.util.Random(42)));
                     logicView.feedback.setText("Tente novamente. Confira cada etapa da sequência antes de informar o resultado.");
                     renderSurface(logicView, 780, 620, "build/central-logic.png");

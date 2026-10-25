@@ -18,7 +18,7 @@ public final class LabDialog extends JDialog {
         var method = view.method; var path = view.path; var token = view.token;
         var type = view.type; var body = view.body; var answer = view.answer;
         var send = view.send; var confirm = view.confirm; var back = view.back; var feedback = view.feedback;
-        CentralViews.install(this, view, new Dimension(960, 900));
+        CentralViews.install(this, view, new Dimension(1080, 650));
         send.addActionListener(event -> {
             validResponse = false; send.setEnabled(false);
             String sentMethod = (String) method.getSelectedItem(), sentPath = path.getText().trim();
@@ -34,9 +34,10 @@ public final class LabDialog extends JDialog {
                         return;
                     }
                     long millis = (System.nanoTime() - started) / 1_000_000;
-                    output.setText(sentMethod + " " + response.uri() + "\nHTTP " + response.statusCode() + " • " + millis + " ms\n");
-                    response.headers().map().forEach((key, values) -> output.append(key + ": " + String.join(", ", values) + "\n"));
-                    output.append("\n" + response.body());
+                    String headers = "Content-Type: " + response.headers().firstValue("Content-Type").orElse("—");
+                    for (String name : new String[]{"Allow", "Location", "WWW-Authenticate"})
+                        if (response.headers().firstValue(name).isPresent()) headers += "\n" + name + ": " + response.headers().firstValue(name).orElse("");
+                    output.setText("HTTP " + response.statusCode() + " • " + millis + " ms\n" + headers + "\n\n" + response.body());
                     validResponse = lesson.accepts(sentMethod, sentPath, response);
                     feedback.setText(validResponse ? "Sucesso! Leia o JSON e responda à pergunta." : "Ainda não: compare método, endpoint, cabeçalhos e corpo com o contrato.");
                 }));

@@ -19,6 +19,9 @@ public final class Main {
             window.pack(); window.setLocationRelativeTo(null); window.setResizable(true);
             window.setMinimumSize(new java.awt.Dimension(640, 420));
             game.setWindowMode(new WindowMode(window));
+            window.addWindowListener(new java.awt.event.WindowAdapter() {
+                @Override public void windowClosing(java.awt.event.WindowEvent e) { game.closeAudio(); }
+            });
             window.setVisible(true); game.requestFocusInWindow();
         });
     }

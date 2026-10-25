@@ -54,8 +54,8 @@ public final class GameModel {
     public boolean apiSolved() { return apiSolved; }
     public boolean logicSolved() { return logicSolved; }
     public boolean unlocked() { return apiSolved && logicSolved; }
-    private static int[] shuffle(Random random) {
-        int[] result = new int[REGION_COUNT];
+    private static int[] shuffle(Random random, int count) {
+        int[] result = new int[count];
         for (int i = 0; i < result.length; i++) result[i] = i;
         for (int i = result.length - 1; i > 0; i--) { int j = random.nextInt(i + 1), t = result[i]; result[i] = result[j]; result[j] = t; }
         return result;
@@ -66,7 +66,8 @@ public final class GameModel {
     }
     public void restart(long newSeed) {
         seed = newSeed; Random random = new Random(seed);
-        order = shuffle(random); apiOrder = shuffle(random); int[] kinds = shuffle(random);
+        order = shuffle(random, REGION_COUNT); apiOrder = Arrays.copyOf(shuffle(random, Lesson.ALL.length), REGION_COUNT);
+        int[] kinds = shuffle(random, LogicChallenge.COUNT);
         logic = new LogicChallenge[REGION_COUNT];
         for (int i = 0; i < REGION_COUNT; i++) logic[i] = LogicChallenge.create(kinds[i], random);
         level = 0; lives = 3; coins = 0; won = gameOver = false; load();

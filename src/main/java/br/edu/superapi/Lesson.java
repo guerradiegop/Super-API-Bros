@@ -3,57 +3,44 @@ package br.edu.superapi;
 import java.net.http.HttpResponse;
 import java.util.Map;
 
+/** Independent communication protocols, sampled without replacement per expedition. */
 public record Lesson(String title, String explanation, String contract, String method, String path,
-                     int status, String field, String answer, String question) {
+                     int status, String field, String answer, String question, boolean authenticated, String requestBody) {
     public static final Lesson[] ALL = {
-        new Lesson("01 / Jardim dos endpoints",
-            "O jardim perdeu sua rota. Consulte a central para restaurar a passagem.\n"
-            + "Este terminal é o cliente e a central é o servidor. HTTP transporta\n"
-            + "a requisição e a resposta. APIs servem para consultar dados e acionar serviços.\n"
-            + "GET consulta um recurso; o endpoint é o endereço desse recurso.",
-            "GET /world/1\nSem corpo ou autenticação. Resposta: 200 + JSON com world e gate.",
-            "GET", "/world/1", 200, "world", "Jardim dos endpoints", "Qual é o valor de world no JSON recebido?"),
-        new Lesson("02 / Fortaleza das chaves",
-            "A fortaleza exige uma chave. Filtre a consulta: ?color=blue. Cabeçalhos enviam\n"
-            + "metadados. Authorization identifica a credencial apresentada ao servidor.\n"
-            + "401 significa credencial ausente ou inválida; 400 indica requisição inválida.\n"
-            + "Tokens reais são secretos. aluno-api é apenas uma credencial de demonstração.",
-            "GET /keys?color=blue\nAuthorization: Bearer aluno-api\nResposta: 200 + JSON com key e gate.",
-            "GET", "/keys?color=blue", 200, "key", "blue", "Qual é o valor de key no JSON recebido?"),
-        new Lesson("03 / Oficina das pontes",
-            "A ponte desabou. Envie uma ordem de construção com POST. O corpo contém o JSON\n"
-            + "e Content-Type informa seu formato. 201 significa criação bem-sucedida.\n"
-            + "415: formato não aceito. 422: dados válidos no formato, mas fora da regra.\n"
-            + "A oficina confirma a ordem; o registro da construção é temporário.",
-            "POST /bridges\nContent-Type: application/json\nCorpo: {\"material\":\"wood\"}\nResposta: 201 + JSON com bridge, material e gate.",
-            "POST", "/bridges", 201, "bridge", "built", "Qual é o valor de bridge no JSON recebido?"),
-        new Lesson("04 / Cavernas de cristal",
-            "A névoa esconde a saída. Consulte os sensores da caverna.\nGET lê as condições; a query seleciona a região monitorada.",
-            "GET /weather?region=crystal\nResposta: 200 + JSON com weather e gate.",
-            "GET", "/weather?region=crystal", 200, "weather", "clear", "Qual condição aparece em weather?"),
-        new Lesson("05 / Deserto dos sinais",
-            "O farol está apagado. Restaure sua configuração com PUT.\nPUT substitui a configuração; repetir a mesma ordem mantém o resultado.",
-            "PUT /beacon\nContent-Type: application/json\nCorpo: {\"signal\":\"on\"}\nResposta: 200 + JSON com beacon e gate.",
-            "PUT", "/beacon", 200, "beacon", "lit", "Qual estado aparece em beacon?"),
-        new Lesson("06 / Cidade suspensa",
-            "Uma interferência isolou a cidade. Remova a origem com DELETE.\nApresente sua credencial para autorizar a remoção. Esta central retorna JSON com status 200.",
-            "DELETE /interference\nAuthorization: Bearer aluno-api\nResposta: 200 + JSON com interference e gate.",
-            "DELETE", "/interference", 200, "interference", "removed", "Qual resultado aparece em interference?"),
-        new Lesson("07 / Cordilheira branca",
-            "O frio interrompeu o sinal. Ative um aquecedor com uma ordem POST.\nAs plataformas de gelo sobem e descem; aguarde o melhor momento para saltar.",
-            "POST /heaters\nContent-Type: application/json\nCorpo: {\"fuel\":\"thermal\"}\nResposta: 201 + JSON com heat e gate.",
-            "POST", "/heaters", 201, "heat", "warm", "Qual estado aparece em heat?"),
-        new Lesson("08 / Horizonte das cinzas",
-            "A central respira ar contaminado. Reconfigure o purificador com PUT.\nA manutenção exige credencial, Content-Type e o filtro correto.",
-            "PUT /purifier\nAuthorization: Bearer aluno-api\nContent-Type: application/json\nCorpo: {\"filter\":\"carbon\"}\nResposta: 200 + JSON com air e gate.",
-            "PUT", "/purifier", 200, "air", "clean", "Qual condição aparece em air?"),
-        new Lesson("Leitura das marés", "Ajuste a rota marítima consultando o sensor de marés.",
-            "GET /tides?mode=low\nResposta: 200 + JSON com tide e gate.",
-            "GET", "/tides?mode=low", 200, "tide", "low", "Qual é o valor de tide?"),
-        new Lesson("Reator da aurora", "Alimente o reator com uma célula solar para restaurar a conexão.",
-            "POST /reactor\nContent-Type: application/json\nCorpo: {\"cell\":\"solar\"}\nResposta: 201 + JSON com reactor e gate.",
-            "POST", "/reactor", 201, "reactor", "online", "Qual é o valor de reactor?")
+        define("Rota de comunicação", "Consulte o registro da rede para reencontrar o sinal.", "GET", "/world/1", 200, "world", "connected", false, ""),
+        define("Chave de acesso", "Recupere a chave azul usando sua credencial.", "GET", "/keys?color=blue", 200, "key", "blue", true, ""),
+        define("Ponte de dados", "Solicite uma ponte para reconectar dois canais.", "POST", "/bridges", 201, "bridge", "built", false, "{\"material\":\"wood\"}"),
+        define("Leitura dos sensores", "Consulte o sensor remoto indicado pelo protocolo.", "GET", "/weather?sensor=remote", 200, "weather", "clear", false, ""),
+        define("Farol de transmissão", "Restaure a configuração do sinal de orientação.", "PUT", "/beacon", 200, "beacon", "lit", false, "{\"signal\":\"on\"}"),
+        define("Limpeza de canal", "Remova a interferência usando a credencial de manutenção.", "DELETE", "/interference", 200, "interference", "removed", true, ""),
+        define("Controle térmico", "Ative o módulo que estabiliza a temperatura da central.", "POST", "/heaters", 201, "heat", "warm", false, "{\"fuel\":\"thermal\"}"),
+        define("Filtro de circulação", "Substitua a configuração do filtro de ar da central.", "PUT", "/purifier", 200, "air", "clean", true, "{\"filter\":\"carbon\"}"),
+        define("Sensor de fluxo", "Consulte o nível de fluxo do circuito de refrigeração.", "GET", "/tides?mode=low", 200, "tide", "low", false, ""),
+        define("Fonte de energia", "Alimente o módulo de energia para sustentar a conexão.", "POST", "/reactor", 201, "reactor", "online", false, "{\"cell\":\"solar\"}"),
+        define("Diagnóstico", "Verifique se os serviços essenciais respondem.", "GET", "/health", 200, "health", "ready", false, ""),
+        define("Inventário", "Localize o componente de reparo no inventário.", "GET", "/inventory?item=cable", 200, "stock", "available", false, ""),
+        define("Rota alternativa", "Selecione a rota de menor latência.", "GET", "/routes?sort=latency", 200, "route", "direct", false, ""),
+        define("Arquivo de sinais", "Recupere a segunda página do arquivo.", "GET", "/signals?page=2", 200, "page", "second", false, ""),
+        define("Acesso ao cofre", "Consulte a credencial armazenada no cofre protegido.", "GET", "/vault", 200, "access", "granted", true, ""),
+        define("Reserva de canal", "Reserve um canal de transmissão para a equipe.", "POST", "/channels", 201, "channel", "reserved", true, "{\"band\":\"short\"}"),
+        define("Entrega de pacote", "Registre a entrega de um pacote prioritário.", "POST", "/packets", 201, "packet", "received", false, "{\"priority\":\"high\"}"),
+        define("Sincronização", "Envie um marcador para sincronizar os relógios.", "POST", "/sync", 201, "clock", "synced", false, "{\"pulse\":\"start\"}"),
+        define("Cópia de segurança", "Solicite uma cópia da configuração ativa.", "POST", "/backups", 201, "backup", "saved", true, "{\"scope\":\"config\"}"),
+        define("Antena", "Ajuste a direção da antena de comunicação.", "PUT", "/antenna", 200, "antenna", "aligned", false, "{\"direction\":\"north\"}"),
+        define("Regulador", "Defina a tensão do circuito auxiliar.", "PUT", "/voltage", 200, "voltage", "stable", false, "{\"mode\":\"safe\"}"),
+        define("Prioridade de tráfego", "Atualize somente a prioridade da fila.", "PATCH", "/queue", 200, "queue", "optimized", true, "{\"priority\":\"rescue\"}"),
+        define("Modo de escuta", "Atualize o modo de escuta sem substituir as outras opções.", "PATCH", "/receiver", 200, "receiver", "listening", false, "{\"mode\":\"listen\"}"),
+        define("Limpeza de cache", "Remova registros antigos do cache local.", "DELETE", "/cache", 200, "cache", "empty", false, ""),
+        define("Revogação de sessão", "Revogue uma sessão inválida com autorização.", "DELETE", "/sessions/expired", 200, "session", "revoked", true, "")
     };
+    private static Lesson define(String title, String context, String method, String path, int status,
+                                 String field, String answer, boolean auth, String body) {
+        String contract = method + " " + path + (auth ? "\nAuthorization: Bearer aluno-api" : "\nSem autenticação.")
+                + (body.isEmpty() ? "\nSem corpo." : "\nContent-Type: application/json\nCorpo: " + body)
+                + "\nResposta: " + status + " + JSON com " + field + " e gate.";
+        return new Lesson(title, context, contract, method, path, status, field, answer,
+                "Qual é o valor de " + field + " no JSON?", auth, body);
+    }
     public boolean accepts(String sentMethod, String sentPath, HttpResponse<String> response) {
         if (!method.equals(sentMethod) || !path.equals(sentPath) || response.statusCode() != status) return false;
         try {

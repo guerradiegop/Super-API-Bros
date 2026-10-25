@@ -9,6 +9,8 @@ import java.util.Set;
 public final class GamePanel extends JPanel {
     private final GameModel model = new GameModel();
     private final ApiClient api;
+    private final RegionMusic music = new RegionMusic();
+    public void closeAudio() { music.close(); }
     private final Set<Integer> keys = new HashSet<>();
     private boolean started, paused, labOpen, choosing = true, jumpOne, jumpTwo;
     private int selectionPlayer;
@@ -23,6 +25,7 @@ public final class GamePanel extends JPanel {
         addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent event) {
                 int key = event.getKeyCode(); if (!keys.add(key)) return;
+                if (key == KeyEvent.VK_M && !choosing) { music.toggleMute(); return; }
                 if (windowMode != null && (key == KeyEvent.VK_F11 || key == KeyEvent.VK_ESCAPE && windowMode.isFullscreen())) {
                     clearInput(); if (started) paused = true;
                     windowMode.toggle(); return;
@@ -86,13 +89,14 @@ public final class GamePanel extends JPanel {
                 }
                 jumpOne = jumpTwo = false; accumulator -= 1.0 / 60;
             }
+            music.update(model.region(), started && !paused && !labOpen && !choosing && !model.won && !model.gameOver);
             repaint();
         });
     }
     private void clearInput() { keys.clear(); jumpOne = jumpTwo = false; }
     private void toggleMode() { model.cooperative = !model.cooperative; selectionPlayer = 0; }
     @Override public void addNotify() { super.addNotify(); previous = System.nanoTime(); timer.start(); }
-    @Override public void removeNotify() { timer.stop(); super.removeNotify(); }
+    @Override public void removeNotify() { timer.stop(); music.update(model.region(), false); super.removeNotify(); }
     private void confirmExplorer() {
         if (model.won || model.gameOver) model.restart();
         choosing = false; started = true; paused = false; clearInput();
@@ -101,7 +105,7 @@ public final class GamePanel extends JPanel {
         int central = model.canUseTerminal(0) && !model.apiSolved() ? 0
                 : model.canUseTerminal(1) && !model.logicSolved() ? 1 : -1;
         if (central < 0) return;
-        labOpen = true; clearInput();
+        labOpen = true; music.update(model.region(), false); clearInput();
         if (central == 0) {
             LabDialog dialog = new LabDialog(SwingUtilities.getWindowAncestor(this), api, model.apiLesson());
             dialog.setVisible(true); if (dialog.solved()) model.completeApi();
@@ -227,7 +231,7 @@ public final class GamePanel extends JPanel {
         else if (model.gameOver) overlay(g, "SINAL PERDIDO", "A conexão se apagou. Uma nova rota está à espera.",
                 "Corações restauram energia. Na dupla, ninguém fica para trás.", "R: nova expedição • C: escolher personagens");
         else if (paused) overlay(g, "EM ABRIGO", "O percurso e os desafios desta expedição estão preservados.",
-                "Reúna as moedas e restabeleça as centrais de API e de lógica.", "P: continuar • C: personagens • N: nova expedição");
+                "Reúna as moedas e restabeleça as centrais de API e de lógica.", "P: continuar • C: personagens • N: nova expedição • M: som " + (music.muted() ? "desligado" : "ligado"));
         else if (model.nearTerminal(0) || model.nearTerminal(1)) {
             int central = model.nearTerminal(0) ? 0 : 1;
             String message = central == 1 && !model.apiSolved() ? "Ative primeiro a central de API no meio da rota."
@@ -237,7 +241,7 @@ public final class GamePanel extends JPanel {
                     : central == 0 && model.apiSolved() ? "Checkpoint ativo. Siga até a central final."
                     : "Enter / E: " + (central == 0 ? "restabelecer API e ativar checkpoint." : "resolver lógica e liberar a próxima região.");
             label(g, message, 25, 108, 16, Color.WHITE);
-        } else label(g, "API no meio: checkpoint • lógica no final: próxima região • F/K: habilidade", 25, 108, 14, theme.accent());
+        }
         g.dispose();
     }
     private void drawCentral(Graphics2D g, int index, int x) {
@@ -275,7 +279,7 @@ public final class GamePanel extends JPanel {
         label(g, started && !model.won && !model.gameOver ? "ENTER  /  Retomar travessia" : "ENTER  /  Iniciar travessia", 365, 503, 18, new Color(9, 25, 35));
         label(g, model.cooperative ? "P1  Setas + K     •     P2  A/D/W + F     •     Especiais: um uso por fase"
                 : "Mover: A/D ou setas     •     Saltar: W ou ↑     •     Especial: K ou F, um uso por fase", 170, 551, 13, muted);
-        label(g, "F11  Tela cheia", 438, 580, 12, muted);
+        label(g, "F11  Tela cheia  •  M durante a travessia: som", 340, 580, 12, muted);
     }
 
     private static String abilityStatus(GameModel.Player p) {
