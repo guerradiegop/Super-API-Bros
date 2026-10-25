@@ -91,6 +91,14 @@ Os protocolos HTTP incluem GET com filtros e paginação, POST de registros, PUT
 
 A central de lógica usa acumuladores, condições, índices de listas, binário, expressões booleanas, filas, pilhas, laços, troca de variáveis e busca, além de negação, disjunção, resto, divisão inteira, laços aninhados, mínimos/máximos, somas, duplicação, funções, contagem de pares, índices circulares, ordenação e atualização de memória. Não executa código fornecido pelo usuário. Resposta errada apresenta uma dica e não custa energia.
 
+## Pontuação
+
+* Cada inimigo derrotado vale **100 pontos**, por salto, explosão ou bolada. O mesmo inimigo só pontua uma vez.
+* Ao atravessar a saída de uma fase concluída, soma-se `máximo(0, 6000 − 10 × segundos de travessia)`. Segundos parciais são arredondados para cima. Em 2 minutos, o bônus é 4.800; a partir de 10 minutos, é zero.
+* O relógio conta apenas a simulação ativa: pausas, seleção, perda de foco e desafios das centrais não consomem o bônus. O tempo gasto em novas tentativas após morrer continua contando.
+* Mortes e checkpoints preservam pontos e tempo; a fase seguinte reinicia somente o relógio da fase. Nova expedição zera o placar. Fases incompletas não dão bônus de tempo.
+* Na dupla, o placar é compartilhado. O cabeçalho mostra pontos, tempo total e abates; a pausa mostra o bônus possível da fase. Vitória e derrota mostram a divisão entre pontos de inimigos e bônus de tempo.
+
 ## Música por região
 
 Dez composições originais em estilo 8-bit são sintetizadas localmente: onda de pulso na melodia, baixo triangular e percussão de ruído. Cada região tem uma partitura, tonalidade e andamento fixos, independentes da seed, dos desafios e da ordem da campanha. São loops de oito compassos. A música pausa em abrigos, seleção e centrais; ao retornar à mesma região, a composição continua sendo a mesma.

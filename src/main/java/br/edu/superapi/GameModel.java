@@ -31,6 +31,33 @@ public final class GameModel {
     public boolean cooperative, won, gameOver;
     public int level, lives, coins, invincible;
     private boolean apiSolved, logicSolved;
+    public static final int ENEMY_POINTS = 100, MAX_TIME_BONUS = 6000, TIME_COST_PER_SECOND = 10;
+    private long phaseTicks, totalTicks;
+    private int defeatedEnemies, timePoints;
+    private boolean phaseScored;
+    private final List<PhaseScore> results = new ArrayList<>();
+    public record PhaseScore(int region, long ticks, int bonus) {}
+    public long phaseTicks() { return phaseTicks; }
+    public long totalTicks() { return totalTicks; }
+    public int defeatedEnemies() { return defeatedEnemies; }
+    public int enemyPoints() { return defeatedEnemies * ENEMY_POINTS; }
+    public int timePoints() { return timePoints; }
+    public int score() { return enemyPoints() + timePoints; }
+    public List<PhaseScore> results() { return List.copyOf(results); }
+    public static int timeBonus(long ticks) {
+        long seconds = ticks / 60 + (ticks % 60 == 0 ? 0 : 1);
+        return seconds >= MAX_TIME_BONUS / TIME_COST_PER_SECOND ? 0 : MAX_TIME_BONUS - (int)seconds * TIME_COST_PER_SECOND;
+    }
+    private void defeat(Enemy enemy) {
+        if (!enemy.alive) return;
+        enemy.alive = false; defeatedEnemies++;
+    }
+    private void finishPhase() {
+        if (phaseScored) return;
+        phaseScored = true;
+        int bonus = timeBonus(phaseTicks); timePoints += bonus;
+        results.add(new PhaseScore(region(), phaseTicks, bonus));
+    }
     private int levelCoinTotal;
     private long seed;
     private int[] order, apiOrder;
@@ -70,12 +97,14 @@ public final class GameModel {
         int[] kinds = shuffle(random, LogicChallenge.COUNT);
         logic = new LogicChallenge[REGION_COUNT];
         for (int i = 0; i < REGION_COUNT; i++) logic[i] = LogicChallenge.create(kinds[i], random);
-        level = 0; lives = 3; coins = 0; won = gameOver = false; load();
+        level = 0; lives = 3; coins = 0; won = gameOver = false;
+        totalTicks = 0; defeatedEnemies = timePoints = 0; results.clear(); load();
     }
     public static int blockStart(int block) {
         return (block < 5 ? 140 : TERMINAL_X + 140) + (block % 5) * 640;
     }
     public void load() {
+        phaseTicks = 0; phaseScored = false;
         apiSolved = logicSolved = false;
         platforms.clear(); collectibles.clear(); hearts.clear(); enemies.clear(); balls.clear();
         for (Player p : List.of(first, second)) { p.abilityTicks = p.effectTicks = 0; p.abilityUsed = false; }
@@ -158,6 +187,7 @@ public final class GameModel {
     public void tick(boolean left, boolean right, boolean jump) { tick(new Input(left, right, jump), Input.NONE); }
     public void tick(Input one, Input two) {
         if (won || gameOver) return;
+        phaseTicks++; totalTicks++;
         tickWorld(one, two);
         for (Player p : players()) {
             if (p.abilityTicks > 0) p.abilityTicks--;
@@ -194,7 +224,7 @@ public final class GameModel {
             enemy.tick(target);
             for (Player p : players()) if (enemy.alive && p.bounds().intersects(enemy.bounds())) {
                 double bottom = p == first ? firstBottom : secondBottom;
-                if (p.vy > 0 && bottom <= oldTop + 8) { enemy.alive = false; p.vy = -8; }
+                if (p.vy > 0 && bottom <= oldTop + 8) { defeat(enemy); p.vy = -8; }
                 else if (invincible == 0 && !p.active(Explorer.CRIS)) { hurt(); return; }
             }
         }
@@ -202,6 +232,7 @@ public final class GameModel {
         if (players().stream().anyMatch(p -> p.y > 650 && !p.active(Explorer.CRIS))) { hurt(); return; }
         if (players().stream().anyMatch(p -> p.y > 650)) { respawn(false); return; }
         if (unlocked() && players().stream().allMatch(p -> p.x > EXIT_X)) {
+            finishPhase();
             if (level == REGION_COUNT - 1) won = true; else { level++; load(); }
         }
     }
@@ -255,7 +286,7 @@ public final class GameModel {
         switch (p.explorer) {
             case NEY, VIVI -> p.abilityTicks = 600;
             case CRIS -> p.abilityTicks = 300;
-            case NITA -> enemies.stream().filter(e -> e.alive && visible.intersects(e.bounds())).forEach(e -> e.alive = false);
+            case NITA -> enemies.stream().filter(e -> e.alive && visible.intersects(e.bounds())).forEach(this::defeat);
             case DILA -> {
                 collectibles.removeIf(coin -> { if (visible.intersects(coin)) { coins++; return true; } return false; });
                 hearts.removeIf(heart -> { if (lives < MAX_ENERGY && visible.intersects(heart)) { lives++; return true; } return false; });
@@ -266,7 +297,7 @@ public final class GameModel {
         }
         return true;
     }
-    public static final class Ball {
+    public final class Ball {
         public double x, y;
         public final Enemy target;
         private int lifetime = WIDTH / 14 + 180;
@@ -275,7 +306,7 @@ public final class GameModel {
             if (!target.alive || --lifetime <= 0) return false;
             double dx = target.bounds().getCenterX() - x, dy = target.bounds().getCenterY() - y;
             double distance = Math.hypot(dx, dy);
-            if (distance <= 20) { target.alive = false; return false; }
+            if (distance <= 20) { defeat(target); return false; }
             x += dx / distance * 14; y += dy / distance * 14;
             return true;
         }

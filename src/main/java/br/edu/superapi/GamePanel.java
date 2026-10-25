@@ -218,20 +218,19 @@ public final class GamePanel extends JPanel {
         label(g, "REDE DOS HORIZONTES", 25, 30, 21, new Color(104, 235, 199));
         label(g, GameModel.REGION_NAMES[model.region()], 25, 59, 16, Color.WHITE);
         label(g, (model.cooperative ? "EQUIPE " : "ENERGIA ") + model.lives + "/7   MOEDAS " + model.collectedLevelCoins() + "/" + model.levelCoinTotal()
-                + "   TRECHO " + (model.level + 1) + "/10", 485, 29, 16, Color.WHITE);
+                + "   TRECHO " + (model.level + 1) + "/10", 485, 22, 15, Color.WHITE);
         label(g, "API " + (model.apiSolved() ? "OK" : "—") + "   LÓGICA " + (model.logicSolved() ? "OK" : "—")
-                + (model.cooperative ? "   CORDA " + (int)model.ropeDistance() + "/500" : "   SOLO"), 485, 58, 15, new Color(184, 205, 222));
+                + (model.cooperative ? "   CORDA " + (int)model.ropeDistance() + "/500" : "   SOLO"), 485, 46, 14, new Color(184, 205, 222));
+        label(g, "PONTOS " + model.score() + "   TEMPO " + clock(model.totalTicks()) + "   ABATES " + model.defeatedEnemies(),
+                485, 70, 14, new Color(108, 239, 202));
         label(g, model.cooperative ? "P1: ← → ↑ / Enter / K    P2: A D W / E / F    Voo: ↑↓ ou W/S    P: pausa    F11: tela cheia"
                 : "A/D ou ←/→: mover    W/↑/Espaço: salto    E/Enter: central    F/K: especial    P: pausa    F11: tela cheia", 20, 568, 13, Color.WHITE);
         label(g, "P1 " + abilityStatus(model.first), 20, 590, 13, new Color(108, 239, 202));
         if (model.cooperative) label(g, "P2 " + abilityStatus(model.second), 510, 590, 13, new Color(255, 211, 110));
         if (choosing) drawSelection(g);
-        else if (model.won) overlay(g, "DEZ HORIZONTES RESTAURADOS", "As duas centrais de cada região voltaram a responder.",
-                "Uma nova expedição trará outra ordem e novos desafios.", "R: nova expedição • C: escolher personagens");
-        else if (model.gameOver) overlay(g, "SINAL PERDIDO", "A conexão se apagou. Uma nova rota está à espera.",
-                "Corações restauram energia. Na dupla, ninguém fica para trás.", "R: nova expedição • C: escolher personagens");
-        else if (paused) overlay(g, "EM ABRIGO", "O percurso e os desafios desta expedição estão preservados.",
-                "Reúna as moedas e restabeleça as centrais de API e de lógica.", "P: continuar • C: personagens • N: nova expedição • M: som " + (music.muted() ? "desligado" : "ligado"));
+        else if (model.won) overlay(g, "DEZ HORIZONTES RESTAURADOS", scoreSummary(), scoreBreakdown(), "R: nova expedição • C: escolher personagens");
+        else if (model.gameOver) overlay(g, "SINAL PERDIDO", scoreSummary(), scoreBreakdown(), "R: nova expedição • C: escolher personagens");
+        else if (paused) overlay(g, "EM ABRIGO", scoreSummary(), "Fase: " + clock(model.phaseTicks()) + " • Bônus de tempo possível: " + GameModel.timeBonus(model.phaseTicks()), "P: continuar • C: personagens • N: nova expedição • M: som " + (music.muted() ? "desligado" : "ligado"));
         else if (model.nearTerminal(0) || model.nearTerminal(1)) {
             int central = model.nearTerminal(0) ? 0 : 1;
             String message = central == 1 && !model.apiSolved() ? "Ative primeiro a central de API no meio da rota."
@@ -313,6 +312,15 @@ public final class GamePanel extends JPanel {
     }
     private static void label(Graphics2D g, String text, int x, int y, int size, Color color) {
         g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, size)); g.setColor(color); g.drawString(text, x, y);
+    }
+    private static String clock(long ticks) {
+        long seconds = ticks / 60;
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60);
+    }
+    private String scoreSummary() { return "Pontuação " + model.score() + " • Tempo de travessia " + clock(model.totalTicks()); }
+    private String scoreBreakdown() {
+        return "Inimigos: " + model.enemyPoints() + " • Bônus de tempo: " + model.timePoints()
+                + " • Fases concluídas: " + model.results().size() + "/10";
     }
     private static void overlay(Graphics2D g, String title, String first, String second, String action) {
         g.setColor(new Color(4, 10, 24, 220)); g.fillRect(0, 82, 1000, 468);

@@ -273,6 +273,7 @@ public final class AllTests {
             }
             game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 2, "Reinício integral");
             AbilityTests.run();
+            ScoreTests.run();
             ExpansionTests.run(client);
             testUI(client, args.length > 0 && args[0].equals("--render"));
         }
@@ -334,10 +335,10 @@ public final class AllTests {
                 press(panel, java.awt.event.KeyEvent.VK_K); press(panel, java.awt.event.KeyEvent.VK_F);
                 check(model.first.active(Explorer.VIVI) && model.second.abilityUsed, "K ativa P1 e F ativa P2");
                 press(panel, java.awt.event.KeyEvent.VK_P);
-                int active = model.first.abilityTicks;
+                int active = model.first.abilityTicks; long scoreTicks = model.totalTicks();
                 accumulator.setDouble(panel, 1.0 / 60); previous.setLong(panel, System.nanoTime());
                 ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick"));
-                check(model.first.abilityTicks == active && model.first.abilityUsed, "Pausa congela duração e preserva uso");
+                check(model.totalTicks() == scoreTicks && model.first.abilityTicks == active && model.first.abilityUsed, "Pausa congela duração e preserva uso");
                 long seed = model.seed(); press(panel, java.awt.event.KeyEvent.VK_N);
                 check(model.seed() != seed && choosing.getBoolean(panel) && !started.getBoolean(panel), "N inicia novo sorteio");
                 panel.setSize(2560, 1080);
