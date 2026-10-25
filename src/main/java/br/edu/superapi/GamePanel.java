@@ -118,6 +118,7 @@ public final class GamePanel extends JPanel {
         g.translate(viewport.left(), viewport.top()); g.scale(viewport.scale(), viewport.scale());
         g.clipRect(0, 0, 1000, 600);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        if (choosing) { drawSelection(g); g.dispose(); return; }
         RegionTheme theme = RegionTheme.ALL[model.region()];
         g.setPaint(new GradientPaint(0, 0, theme.sky(), 0, 600, theme.horizon())); g.fillRect(0, 0, 1000, 600);
         int camera = (int)model.camera(); theme.drawBackdrop(g, camera, model.region()); g.translate(-camera, 0);
@@ -248,32 +249,38 @@ public final class GamePanel extends JPanel {
         label(g, index == 0 ? "API • CHECKPOINT" : "LÓGICA • SAÍDA", x - 55, 415, 12, Color.WHITE);
     }
     private void drawSelection(Graphics2D g) {
-        g.setColor(new Color(7, 16, 30, 245)); g.fillRect(0, 82, 1000, 468);
-        label(g, "ESCOLHA QUEM ATRAVESSARÁ OS HORIZONTES", 25, 121, 25, new Color(108, 239, 202));
-        g.setColor(new Color(35, 77, 81)); g.fillRect(25, 158, 265, 37);
-        label(g, "M • " + (model.cooperative ? "DUPLA LOCAL" : "EXPEDIÇÃO SOLO"), 40, 183, 17, Color.WHITE);
-        label(g, model.cooperative ? "TAB • selecionando P" + (selectionPlayer + 1) : "1–6 ou setas para escolher", 315, 183, 16, Color.WHITE);
-        label(g, model.cooperative ? "Setas escolhem P1 • A/D escolhem P2 • clique nos retratos" : "Dez regiões e desafios sorteados a cada nova expedição", 25, 211, 14, new Color(184, 205, 222));
+        Color mint = new Color(108, 239, 202), muted = new Color(158, 179, 198);
+        g.setPaint(new GradientPaint(0, 0, new Color(10, 23, 37), 1000, 600, new Color(17, 36, 48)));
+        g.fillRect(0, 0, 1000, 600);
+        label(g, "REDE DOS HORIZONTES", 25, 48, 16, mint);
+        label(g, "Sua próxima travessia começa aqui.", 25, 100, 30, Color.WHITE);
+        label(g, "Escolha quem vai explorar os horizontes.", 25, 128, 15, muted);
+        g.setColor(new Color(32, 61, 70)); g.fillRoundRect(25, 158, 265, 37, 14, 14);
+        label(g, "M  /  " + (model.cooperative ? "Dupla local" : "Expedição solo"), 40, 183, 16, Color.WHITE);
+        label(g, model.cooperative ? "TAB  /  escolhendo P" + (selectionPlayer + 1) : "Clique em um retrato ou use 1–6", 315, 183, 15, muted);
         for (Explorer explorer : Explorer.values()) {
             int cx = 25 + explorer.ordinal() * 160;
             boolean p1 = model.first.explorer == explorer, p2 = model.cooperative && model.second.explorer == explorer;
-            g.setColor(p1 || p2 ? new Color(35, 77, 81) : new Color(22, 36, 55)); g.fillRect(cx, 225, 150, 215);
-            g.setColor(p1 ? new Color(108, 239, 202) : p2 ? new Color(255, 211, 110) : new Color(56, 75, 95)); g.drawRect(cx, 225, 150, 215);
-            label(g, "" + (explorer.ordinal() + 1) + (p1 ? "  P1" : "") + (p2 ? "  P2" : ""), cx + 10, 247, 13, Color.WHITE);
+            g.setColor(p1 || p2 ? new Color(29, 65, 69) : new Color(22, 39, 55));
+            g.fillRoundRect(cx, 225, 150, 215, 18, 18);
+            g.setColor(p1 ? mint : p2 ? new Color(255, 211, 110) : new Color(44, 62, 77));
+            g.drawRoundRect(cx, 225, 150, 215, 18, 18);
+            label(g, "" + (explorer.ordinal() + 1), cx + 12, 249, 12, muted);
+            if (p1 || p2) label(g, (p1 ? "P1" : "") + (p2 ? " P2" : ""), cx + 85, 249, 12, mint);
             explorer.draw(g, cx + 33, 262, 3);
-            label(g, explorer.displayName, cx + 12, 402, 22, Color.WHITE);
-            label(g, explorer.abilityName(), cx + 10, 421, 11, new Color(184, 205, 222));
-            label(g, explorer.abilitySummary(), cx + 10, 436, 10, new Color(184, 205, 222));
+            label(g, explorer.displayName, cx + 12, 400, 22, Color.WHITE);
+            label(g, explorer.abilityName(), cx + 12, 423, 11, muted);
         }
-        label(g, model.cooperative ? "Energia compartilhada • corda de 500 unidades • cheguem juntos às centrais e à saída"
-                : "API no meio salva o percurso. Lógica no final libera a próxima região.", 25, 462, 14, Color.WHITE);
-        g.setColor(new Color(108, 239, 202)); g.fillRect(300, 475, 400, 42);
-        label(g, started && !model.won && !model.gameOver ? "ENTER • Retomar travessia" : "ENTER • Iniciar travessia", 365, 503, 18, new Color(9, 25, 35));
-        label(g, "Especiais: P1 K / P2 F • Recarga 20 s • F11: tela cheia • N na pausa: nova expedição", 190, 539, 14, new Color(184, 205, 222));
+        g.setColor(mint); g.fillRoundRect(300, 475, 400, 42, 16, 16);
+        label(g, started && !model.won && !model.gameOver ? "ENTER  /  Retomar travessia" : "ENTER  /  Iniciar travessia", 365, 503, 18, new Color(9, 25, 35));
+        label(g, model.cooperative ? "P1  Setas + K     •     P2  A/D/W + F     •     Especiais: um uso por fase"
+                : "Mover: A/D ou setas     •     Saltar: W ou ↑     •     Especial: K ou F, um uso por fase", 170, 551, 13, muted);
+        label(g, "F11  Tela cheia", 438, 580, 12, muted);
     }
+
     private static String abilityStatus(GameModel.Player p) {
         String state = p.abilityTicks > 0 ? "ATIVA " + ((p.abilityTicks + 59) / 60) + " s"
-                : p.cooldownTicks > 0 ? "recarga " + ((p.cooldownTicks + 59) / 60) + " s" : "PRONTA";
+                : p.abilityUsed ? "USADA NESTA FASE" : "DISPONÍVEL • 1 USO";
         return p.explorer.abilityName() + " • " + state;
     }
     private static void drawAbilityEffect(Graphics2D g, GameModel.Player p, int camera) {

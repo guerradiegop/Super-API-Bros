@@ -9,7 +9,7 @@ public final class GameModel {
     public static final int WIDTH = 7344, VIEW_WIDTH = 1000, ROPE_LENGTH = VIEW_WIDTH / 2;
     public static final int FLOOR = 490, TERMINAL_X = WIDTH / 2, LOGIC_X = WIDTH - 250;
     public static final int GATE_X = WIDTH - 130, EXIT_X = WIDTH - 100, MAX_ENERGY = 7, REGION_COUNT = 10;
-    public static final int BLOCK_COUNT = 10, ABILITY_COOLDOWN = 20 * 60;
+    public static final int BLOCK_COUNT = 10;
     public static final String[] REGION_NAMES = {"Jardim dos endpoints", "Fortaleza das chaves", "Oficina das pontes",
             "Cavernas de cristal", "Deserto dos sinais", "Cidade suspensa", "Cordilheira branca", "Horizonte das cinzas",
             "Arquipélago das marés", "Reator da aurora"};
@@ -17,7 +17,8 @@ public final class GameModel {
         public double x, y, vy;
         public boolean grounded;
         public Explorer explorer;
-        public int abilityTicks, cooldownTicks, effectTicks;
+        public int abilityTicks, effectTicks;
+        public boolean abilityUsed;
         public boolean active(Explorer ability) { return explorer == ability && abilityTicks > 0; }
         Player(Explorer explorer) { this.explorer = explorer; }
         public Rectangle2D.Double bounds() { return new Rectangle2D.Double(x, y, 28, 38); }
@@ -43,7 +44,7 @@ public final class GameModel {
         Player selected = player == 0 ? first : second;
         Explorer next = Explorer.values()[Math.floorMod(index, Explorer.values().length)];
         if (selected.explorer != next) { selected.abilityTicks = selected.effectTicks = 0; }
-        selected.explorer = next; // Switching appearance does not bypass the cooldown.
+        selected.explorer = next; // Switching appearance does not restore the phase charge.
     }
     public int region() { return order[level]; }
     public long seed() { return seed; }
@@ -76,7 +77,7 @@ public final class GameModel {
     public void load() {
         apiSolved = logicSolved = false;
         platforms.clear(); collectibles.clear(); hearts.clear(); enemies.clear(); balls.clear();
-        for (Player p : List.of(first, second)) p.abilityTicks = p.cooldownTicks = p.effectTicks = 0;
+        for (Player p : List.of(first, second)) { p.abilityTicks = p.effectTicks = 0; p.abilityUsed = false; }
         Random random = new Random(seed ^ (region() * 7919L));
         int from = 0;
         // Ten hand-bounded blocks around the midpoint checkpoint. Random variants never exceed tested jump limits.
@@ -101,7 +102,7 @@ public final class GameModel {
                 default -> EnemyKind.CRAWLER;
             };
             enemies.add(new Enemy(start + 20, start + 180, FLOOR - 28, 1.2 + random.nextDouble() * .4, ground));
-            if (block % 5 == 1 || block % 5 == 3) hearts.add(new Rectangle(start + 70, FLOOR - 30, 24, 24));
+            if (block == 2 || block == 7) hearts.add(new Rectangle(start + 70, FLOOR - 30, 24, 24));
         }
         platforms.add(new Rectangle(from, FLOOR, WIDTH - from, 100));
         // ceil(previous population * 1.8), with 22 for the two new regions.
@@ -159,7 +160,6 @@ public final class GameModel {
         tickWorld(one, two);
         for (Player p : players()) {
             if (p.abilityTicks > 0) p.abilityTicks--;
-            if (p.cooldownTicks > 0) p.cooldownTicks--;
             if (p.effectTicks > 0) p.effectTicks--;
         }
     }
@@ -248,8 +248,8 @@ public final class GameModel {
     public boolean activateAbility(int index) {
         if (won || gameOver || index < 0 || index > 1 || index == 1 && !cooperative) return false;
         Player p = index == 0 ? first : second;
-        if (p.cooldownTicks > 0) return false;
-        p.cooldownTicks = ABILITY_COOLDOWN; p.effectTicks = 45;
+        if (p.abilityUsed) return false;
+        p.abilityUsed = true; p.effectTicks = 45;
         Rectangle2D visible = visibleArea();
         switch (p.explorer) {
             case NEY, VIVI -> p.abilityTicks = 600;

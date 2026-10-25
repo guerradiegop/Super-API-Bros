@@ -24,7 +24,7 @@ public final class AbilityTests {
         var inside = enemy(1000, 462); var edge = enemy(659, 462); var outside = enemy(2000, 462); var above = enemy(1000, 20);
         m.enemies.addAll(List.of(inside, edge, outside, above));
         check(m.activateAbility(0) && !inside.alive && !edge.alive && outside.alive && above.alive, "Explosão afeta exatamente inimigos visíveis");
-        check(!m.activateAbility(0), "Recarga bloqueia explosão repetida");
+        check(!m.activateAbility(0), "Uso único bloqueia explosão repetida");
         m = flat(Explorer.NITA); m.cooperative = true; m.second.x = 1450; m.second.y = 452;
         inside = enemy(1700, 462); outside = enemy(650, 462); m.enemies.addAll(List.of(inside, outside));
         m.activateAbility(0); check(!inside.alive && outside.alive, "Explosão usa a câmera compartilhada na dupla");
@@ -48,8 +48,8 @@ public final class AbilityTests {
         m.tick(false, false, false); check(!m.first.active(Explorer.NEY), "Velocidade termina aos dez segundos");
         x = m.first.x; m.tick(false, true, false); check(Math.abs(m.first.x - x - 4.4) < .00001, "Velocidade normal restaurada");
         for (int i = 0; i < 599; i++) m.tick(false, false, false);
-        check(m.first.cooldownTicks == 0 && m.activateAbility(0), "Recarga completa em vinte segundos");
-        m.selectExplorer(0, Explorer.CRIS.ordinal()); check(m.first.abilityTicks == 0 && !m.activateAbility(0), "Troca cancela efeito sem burlar recarga");
+        check(m.first.abilityUsed && !m.activateAbility(0), "Tempo não restaura uso nesta fase");
+        m.selectExplorer(0, Explorer.CRIS.ordinal()); check(m.first.abilityTicks == 0 && !m.activateAbility(0), "Troca cancela efeito sem burlar uso único");
         m = flat(Explorer.CRIS); m.activateAbility(0); m.enemies.add(enemy(1000, 462));
         m.tick(false, false, false); check(m.lives == 3, "Cris imune a contato lateral");
         m.first.y = 700; m.tick(false, false, false);
@@ -91,11 +91,22 @@ public final class AbilityTests {
             check(m.ropeDistance() <= 500.001, "Voo respeita corda");
         }
         m = flat(Explorer.NEY); m.cooperative = true; m.second.x = 500; m.second.y = 452; m.second.grounded = true;
-        m.activateAbility(0); m.second.explorer = Explorer.CRIS; check(m.activateAbility(1), "Recargas independentes na dupla");
+        m.activateAbility(0); m.second.explorer = Explorer.CRIS; check(m.activateAbility(1), "Uso únicos independentes na dupla");
         for (int i = 0; i < 80; i++) { m.tick(false, true, false); check(m.ropeDistance() <= 500.001, "Velocidade respeita corda"); }
         m = flat(Explorer.NITA); m.gameOver = true; check(!m.activateAbility(0), "Sem habilidade após derrota");
         m.gameOver = false; check(!m.activateAbility(1), "Solo não ativa personagem ausente");
-        m.activateAbility(0); m.load(); check(m.first.cooldownTicks == 0 && m.balls.isEmpty(), "Nova fase restaura habilidades e remove projéteis");
+        m.activateAbility(0); m.load(); check(!m.first.abilityUsed && m.balls.isEmpty(), "Nova fase restaura habilidades e remove projéteis");
+        for (Explorer explorer : Explorer.values()) {
+            m = flat(explorer); check(m.activateAbility(0), "Primeiro uso de " + explorer);
+            m.first.abilityTicks = 0; m.first.y = 700; m.tick(false, false, false);
+            check(m.first.abilityUsed && !m.activateAbility(0), "Morte mantém uso de " + explorer);
+            m.first.x = GameModel.TERMINAL_X; m.first.y = 452; m.completeApi();
+            m.first.y = 700; m.tick(false, false, false);
+            check(m.apiSolved() && !m.activateAbility(0), "Checkpoint não restaura especial");
+            m.first.x = GameModel.LOGIC_X; m.first.y = 452; m.submitLogic(m.logicChallenge().answer());
+            m.first.x = GameModel.EXIT_X + 1; m.tick(false, false, false);
+            check(m.level == 1 && !m.first.abilityUsed && m.activateAbility(0), "Próxima fase restaura especial");
+        }
         for (int[] size : new int[][]{{1000,600},{1920,1080},{2560,1080},{800,1200},{640,420}}) {
             Viewport v = Viewport.fit(size[0], size[1]);
             check(1000 * v.scale() <= size[0] + .01 && 600 * v.scale() <= size[1] + .01, "Canvas cabe sem distorção");

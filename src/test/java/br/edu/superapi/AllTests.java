@@ -99,7 +99,7 @@ public final class AllTests {
                     game.level = phase; game.load(); replay.level = phase; replay.load();
                     regions.add(game.region()); apis.add(game.apiLesson().path()); logicKinds.add(game.logicChallenge().title()); puzzles.add(game.logicChallenge().prompt());
                     check(game.apiLesson().equals(replay.apiLesson()) && game.logicChallenge().equals(replay.logicChallenge()), "Seed reproduz desafios");
-                    check(game.collectibles.size() == 30 && game.hearts.size() == 4, "Moedas e corações de cada região");
+                    check(game.collectibles.size() == 30 && game.hearts.size() == 2, "Moedas e corações de cada região");
                     int expected = game.region() < 6 ? 20 : game.region() == 6 ? 17 : 22;
                     check(game.enemies.size() == expected, "Inimigos aumentados em ao menos 80%");
                     check(game.checkpointCoinsRemaining() == 15, "Quinze moedas antes do checkpoint");
@@ -148,13 +148,13 @@ public final class AllTests {
             for (var heart : new java.util.ArrayList<>(game.hearts)) {
                 game.first.x = heart.x; game.first.y = heart.y; game.first.vy = 0; game.tick(false, false, false);
             }
-            check(game.lives == 7 && game.hearts.isEmpty(), "Quatro corações levam energia de três a sete");
+            check(game.lives == 5 && game.hearts.isEmpty(), "Dois corações levam energia de três a cinco");
             game.first.y = 700; game.tick(false, false, false);
-            check(game.lives == 6 && game.hearts.isEmpty(), "Corações consumidos não voltam após dano");
+            check(game.lives == 4 && game.hearts.isEmpty(), "Corações consumidos não voltam após dano");
             game.restart(0); game.enemies.clear(); game.lives = 7;
             var heart = game.hearts.get(0); game.first.x = heart.x; game.first.y = heart.y;
-            game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 4, "No teto, coração permanece disponível");
-            game.lives = 6; game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 3, "Coleta após perder energia");
+            game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 2, "No teto, coração permanece disponível");
+            game.lives = 6; game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 1, "Coleta após perder energia");
             // Traverse every elevated route and every gap under multiple seeds and lift phases.
             for (int seed = 0; seed < 2; seed++) for (int phase = 0; phase < 10; phase++)
                 for (int block = 0; block < GameModel.BLOCK_COUNT; block++) for (int delay : new int[]{0, 90}) {
@@ -231,7 +231,7 @@ public final class AllTests {
             check(game.first.y == 420 && game.second.y == 420, "Respawn recupera os dois");
             game.restart(0); game.enemies.clear(); game.cooperative = true;
             heart = game.hearts.get(0); game.first.x = heart.x - 30; game.second.x = heart.x; game.first.y = game.second.y = heart.y;
-            game.tick(false, false, false); check(game.lives == 4 && game.hearts.size() == 3, "P2 coleta coração único para equipe");
+            game.tick(false, false, false); check(game.lives == 4 && game.hearts.size() == 1, "P2 coleta coração único para equipe");
             game.restart(0); game.cooperative = true; game.invincible = 0;
             var enemy = game.enemies.get(0);
             game.first.x = enemy.x - 40; game.first.y = 452;
@@ -271,7 +271,7 @@ public final class AllTests {
                 game.first.x = GameModel.EXIT_X + 1; game.tick(false, false, false);
                 check(game.won == (phase == 9), "Vitória somente após dez fases");
             }
-            game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 4, "Reinício integral");
+            game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 2, "Reinício integral");
             AbilityTests.run();
             testUI(client, args.length > 0 && args[0].equals("--render"));
         }
@@ -285,6 +285,14 @@ public final class AllTests {
     private static void testUI(ApiClient client, boolean render) throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             try {
+                if (render) {
+                    var apiView = new CentralViews.Api(Lesson.ALL[7], client.baseUri().toString());
+                    apiView.output.setText("PUT /purifier\nHTTP 200 • 12 ms\nContent-Type: application/json\n\n{\"air\":\"clean\",\"gate\":\"open\"}");
+                    renderSurface(apiView, 960, 1040, "build/central-api.png");
+                    var logicView = new CentralViews.Logic(LogicChallenge.create(3, new java.util.Random(42)));
+                    logicView.feedback.setText("Tente novamente. Confira cada etapa da sequência antes de informar o resultado.");
+                    renderSurface(logicView, 780, 620, "build/central-logic.png");
+                }
                 GamePanel panel = new GamePanel(client); panel.setSize(1000, 600);
                 var modelField = GamePanel.class.getDeclaredField("model"); modelField.setAccessible(true);
                 GameModel model = (GameModel)modelField.get(panel);
@@ -323,12 +331,12 @@ public final class AllTests {
                 ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick"));
                 check(model.first.vy < 0, "Seta para cima salta P1");
                 press(panel, java.awt.event.KeyEvent.VK_K); press(panel, java.awt.event.KeyEvent.VK_F);
-                check(model.first.active(Explorer.VIVI) && model.second.cooldownTicks == GameModel.ABILITY_COOLDOWN, "K ativa P1 e F ativa P2");
+                check(model.first.active(Explorer.VIVI) && model.second.abilityUsed, "K ativa P1 e F ativa P2");
                 press(panel, java.awt.event.KeyEvent.VK_P);
-                int active = model.first.abilityTicks, cooldown = model.first.cooldownTicks;
+                int active = model.first.abilityTicks;
                 accumulator.setDouble(panel, 1.0 / 60); previous.setLong(panel, System.nanoTime());
                 ((javax.swing.Timer)timerField.get(panel)).getActionListeners()[0].actionPerformed(new java.awt.event.ActionEvent(panel, 0, "tick"));
-                check(model.first.abilityTicks == active && model.first.cooldownTicks == cooldown, "Pausa congela duração e recarga");
+                check(model.first.abilityTicks == active && model.first.abilityUsed, "Pausa congela duração e preserva uso");
                 long seed = model.seed(); press(panel, java.awt.event.KeyEvent.VK_N);
                 check(model.seed() != seed && choosing.getBoolean(panel) && !started.getBoolean(panel), "N inicia novo sorteio");
                 panel.setSize(2560, 1080);
@@ -367,6 +375,14 @@ public final class AllTests {
                 }
             } catch (Exception ex) { throw new RuntimeException(ex); }
         });
+    }
+    private static void layoutTree(java.awt.Container c) {
+        c.doLayout(); for (var child : c.getComponents()) if (child instanceof java.awt.Container nested) layoutTree(nested);
+    }
+    private static void renderSurface(javax.swing.JComponent panel, int width, int height, String path) throws Exception {
+        panel.setSize(width, height); layoutTree(panel);
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        var g = image.createGraphics(); panel.paint(g); g.dispose(); ImageIO.write(image, "png", new File(path));
     }
     private static void render(GamePanel panel, String path) throws Exception {
         BufferedImage image = new BufferedImage(panel.getWidth(), panel.getHeight(), BufferedImage.TYPE_INT_RGB);

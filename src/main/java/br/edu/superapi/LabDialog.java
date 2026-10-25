@@ -7,39 +7,18 @@ import java.net.http.HttpResponse;
 
 /** Editor livre: o aluno lê o contrato, testa erros e interpreta a resposta. */
 public final class LabDialog extends JDialog {
-    private final JTextArea output = area("Envie uma requisição para inspecionar a resposta HTTP.", 8);
+    private final JTextArea output;
     private CompletableFuture<HttpResponse<String>> pending;
     private boolean validResponse;
     private boolean solved;
     public LabDialog(Window owner, ApiClient client, Lesson lesson) {
         super(owner, "Central de comunicação — " + lesson.title(), ModalityType.APPLICATION_MODAL);
-        JPanel root = new JPanel(new BorderLayout(12, 12));
-        root.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
-        setContentPane(root);
-        JTextArea intro = area(lesson.explanation() + "\n\nPROTOCOLO DA CENTRAL\n" + lesson.contract()
-                + "\n\nServidor: " + client.baseUri(), 12);
-        root.add(intro, BorderLayout.NORTH);
-        JPanel center = new JPanel(new BorderLayout(8, 8));
-        JPanel fields = new JPanel(new GridLayout(0, 2, 8, 5));
-        JComboBox<String> method = new JComboBox<>(new String[]{"GET", "POST", "PUT", "DELETE"});
-        JTextField path = new JTextField("/"), token = new JTextField(), type = new JTextField(), body = new JTextField();
-        fields.add(new JLabel("Método HTTP")); fields.add(method);
-        fields.add(new JLabel("Caminho + query")); fields.add(path);
-        fields.add(new JLabel("Authorization (opcional)")); fields.add(token);
-        fields.add(new JLabel("Content-Type (opcional)")); fields.add(type);
-        fields.add(new JLabel("Corpo JSON (opcional)")); fields.add(body);
-        JButton send = new JButton("Enviar requisição HTTP");
-        fields.add(new JLabel("Consulte o protocolo desta central.")); fields.add(send);
-        center.add(fields, BorderLayout.NORTH);
-        center.add(new JScrollPane(output), BorderLayout.CENTER);
-        root.add(center, BorderLayout.CENTER);
-        JPanel south = new JPanel(new GridLayout(0, 1, 4, 4));
-        south.add(new JLabel(lesson.question()));
-        JTextField answer = new JTextField(); south.add(answer);
-        JLabel feedback = new JLabel("Uma resposta correta + sua interpretação restabelecem esta central."); south.add(feedback);
-        JButton confirm = new JButton("Validar resposta e restabelecer central"); south.add(confirm);
-        JButton back = new JButton("Retomar travessia"); south.add(back);
-        root.add(south, BorderLayout.SOUTH);
+        CentralViews.Api view = new CentralViews.Api(lesson, client.baseUri().toString());
+        output = view.output;
+        var method = view.method; var path = view.path; var token = view.token;
+        var type = view.type; var body = view.body; var answer = view.answer;
+        var send = view.send; var confirm = view.confirm; var back = view.back; var feedback = view.feedback;
+        CentralViews.install(this, view, new Dimension(960, 900));
         send.addActionListener(event -> {
             validResponse = false; send.setEnabled(false);
             String sentMethod = (String) method.getSelectedItem(), sentPath = path.getText().trim();
@@ -70,14 +49,7 @@ public final class LabDialog extends JDialog {
             else feedback.setText("Envie a requisição da missão e copie o valor solicitado, sem aspas.");
         });
         back.addActionListener(event -> dispose());
-        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(800, 750); setLocationRelativeTo(owner);
-    }
-    private static JTextArea area(String text, int rows) {
-        JTextArea area = new JTextArea(text, rows, 60);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        area.setEditable(false); area.setLineWrap(true); area.setWrapStyleWord(true);
-        return area;
+        answer.addActionListener(e -> confirm.doClick());
     }
     public boolean solved() { return solved; }
     @Override public void dispose() {

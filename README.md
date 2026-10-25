@@ -26,7 +26,7 @@ Também há `run.bat` e `sh run.sh`. O JAR está incluído. Após editar fontes,
 | Escolher personagens | C na pausa ou no encerramento | C na pausa ou no encerramento |
 | Nova expedição | N na pausa; R no encerramento | Igual |
 
-Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só pode mudar antes de iniciar uma expedição. As setas escolhem P1; A/D escolhem P2 na dupla. **Tab** alterna o jogador selecionado para os atalhos **1–6** ou cliques nos retratos. **Enter** confirma. Esc fecha a seleção aberta durante a pausa, mantendo a pausa. Todos têm o mesmo tamanho de colisão, mas cada explorador possui uma habilidade própria. Trocar personagem cancela o efeito ativo e mantém a recarga.
+Na seleção inicial, **M** alterna solo/dupla (também por clique). O modo só pode mudar antes de iniciar uma expedição. As setas escolhem P1; A/D escolhem P2 na dupla. **Tab** alterna o jogador selecionado para os atalhos **1–6** ou cliques nos retratos. **Enter** confirma. Esc fecha a seleção aberta durante a pausa, mantendo a pausa. Todos têm o mesmo tamanho de colisão, mas cada explorador possui uma habilidade própria. Trocar personagem cancela o efeito ativo e mantém o uso já consumido.
 
 | Explorador | Referência visual |
 |---|---|
@@ -50,7 +50,7 @@ São caricaturas originais desenhadas em código, sem fotografias ou assets exte
 | Vivi | Voar com jatinho | Voo controlável por 10 segundos; solte os comandos verticais para pairar |
 | Leo | Bolada na cara | Dispara até 5 bolas guiadas, uma para cada um dos 5 inimigos vivos mais próximos |
 
-A recarga é de **20 segundos a partir da ativação**, independente por jogador. Pausas, seleção e desafios congelam os temporizadores. Dano cancela efeitos ativos, mas não remove a recarga; uma nova fase reinicia as habilidades. Na dupla, a corda continua limitando voo e super velocidade. A proteção de Cris não protege o parceiro contra inimigos.
+Cada jogador tem **um uso de habilidade por fase**. Morrer, retornar ao checkpoint, esperar ou trocar de personagem não recupera esse uso. Pausas, seleção e desafios congelam a duração dos efeitos. Dano cancela efeitos ativos; avançar de fase ou iniciar uma nova expedição restaura o uso. Na dupla, a corda continua limitando voo e super velocidade. A proteção de Cris não protege o parceiro contra inimigos.
 
 A janela pode ser redimensionada. **F11** alterna tela cheia no monitor atual, e **Esc** retorna à janela. A imagem mantém a proporção 5:3, com barras nas bordas quando necessário; os cliques acompanham a escala. Alternar a tela durante a exploração pausa a expedição: pressione **P** para continuar.
 
@@ -59,7 +59,7 @@ A janela pode ser redimensionada. **F11** alterna tela cheia no monitor atual, e
 * **10 fases de 7.344 unidades**: redução exata de **15%** sobre as 8.640 anteriores. Cada rota tem 10 blocos, 30 plataformas elevadas e 10 fendas, com corredores seguros junto às centrais. As populações de inimigos foram preservadas.
 * **30 moedas por fase**: 15 antes da central intermediária e 15 na segunda metade. A central intermediária exige as moedas da primeira metade; a final exige todas. A contagem é compartilhada na dupla.
 * **Duas centrais e dois desafios por fase:** uma de API (requisição HTTP e interpretação do JSON) e outra de lógica computacional. A central API fica no meio exato (3.672 unidades) e ativa o checkpoint ao ser concluída; a central lógica fica no final e libera a próxima região. A lógica exige a API concluída. O portal exige ambas concluídas; cancelar, falhar ou acertar apenas uma não abre a passagem.
-* **Energia inicial 3, máximo 7.** Há quatro corações por fase. Cada um concede +1, é removido ao coletar e não reaparece após perder energia. No máximo de energia, o coração permanece para uma coleta posterior. Corações e moedas são compartilhados na dupla.
+* **Energia inicial 3, máximo 7.** Há exatamente dois corações por fase, um em cada metade. Cada um concede +1, é removido ao coletar e não reaparece após perder energia. No máximo de energia, o coração permanece para uma coleta posterior. Corações e moedas são compartilhados na dupla.
 * Contato lateral com inimigos ou queda custa uma energia. Na dupla, o dano é compartilhado e os dois reaparecem juntos com proteção temporária, evitando cobrança dupla no mesmo passo. Saltar sobre inimigos os derrota.
 * Concluir a central API ativa o checkpoint no meio da rota. Moedas, corações consumidos e centrais resolvidas permanecem após dano; plataformas móveis/frágeis retornam ao estado inicial. Uma fase nova restaura os itens e os dois desafios.
 * A corda limita a **distância entre os personagens a 500 unidades**, metade da largura visível de 1.000 unidades (não metade do mapa). Movimento que esticaria a corda é limitado; os parceiros precisam avançar juntos. A câmera acompanha o ponto médio. Ambos devem se aproximar da central e atravessar a saída.
@@ -100,12 +100,13 @@ sh build.sh test
 sh run.sh
 ```
 
-No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os testes verificam HTTP real, lógica, reprodutibilidade do sorteio, rotas em diferentes posições dos elevadores, cooperação, corda, moedas, corações, checkpoints, progressão, controles, habilidades, durações, recargas e proporções. `AllTests --render` gera capturas headless em `build/` para inspeção visual. A automação do GitHub compila e testa em Windows, Linux e macOS.
+No Windows: `build.bat test` e `run.bat`. O build gera o JAR versionado. Os testes verificam HTTP real, lógica, reprodutibilidade do sorteio, rotas em diferentes posições dos elevadores, cooperação, corda, moedas, corações, checkpoints, progressão, controles, habilidades, durações, uso único e proporções. `AllTests --render` gera capturas headless em `build/` para inspeção visual. A automação do GitHub compila e testa em Windows, Linux e macOS.
 
 ## Organização
 
 * `GameModel`: estado da campanha, geração limitada dos mapas, física, itens e cooperação.
 * `GamePanel`, `Explorer`, `RegionTheme`, `TerrainPlatform`: interface, avatares e desenho procedural.
+* `CentralViews`: telas das centrais com seções de instrução, resposta e ações, feedback em múltiplas linhas e rolagem em telas menores.
 * `Viewport`, `WindowMode`: escala proporcional, coordenadas de clique e alternância de tela cheia.
 * `Lesson`, `AcademyServer`, `ApiClient`, `LabDialog`: contratos e integração HTTP.
 * `LogicChallenge`, `LogicDialog`: geração e interface de raciocínio computacional.
