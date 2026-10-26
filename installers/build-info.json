@@ -1,10 +1,10 @@
 {
-  "version": "1.0.2",
-  "source_commit": "8cc19b702d3a352a4f436be7621e90bfad853c53",
+  "version": "1.0.3",
+  "source_commit": "4028e834fd8c9cd919c91460bd62be0a13b8a61f",
   "platform": "Windows x64",
   "java": "Temurin 17",
-  "sha256": "a822f63122dfdf9277658c1fa73ad9ef160281fea32f647a191d2ffcbe16bee5",
-  "bytes": 56925184,
+  "sha256": "a4ad6bb46a52d22516179216e285117a9430b730f21ab3b09573e2ee96d3bac4",
+  "bytes": 56929280,
   "validation": [
     "source tests",
     "bundled runtime tests",

@@ -1,1 +1,1 @@
-a822f63122dfdf9277658c1fa73ad9ef160281fea32f647a191d2ffcbe16bee5  RedeDosHorizontes-Windows-x64.exe
+a4ad6bb46a52d22516179216e285117a9430b730f21ab3b09573e2ee96d3bac4  RedeDosHorizontes-Windows-x64.exe
