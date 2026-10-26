@@ -4,6 +4,10 @@ Expedição de plataforma em **Java 17**, em português, com dez regiões, seis 
 
 ## Executar
 
+**Windows x64, sem instalar Java:** baixe o [instalador completo](https://github.com/guerradiegop/Super-API-Bros/raw/refs/heads/main/installers/RedeDosHorizontes-Windows-x64.exe). Basta compartilhar esse único `.exe`. Veja [instruções e validações](installers/README.md).
+
+Para executar diretamente pelo JAR:
+
 Requer Java 17+ com desktop Windows, Linux ou macOS. Baixe o repositório, extraia e execute:
 
 ```sh
