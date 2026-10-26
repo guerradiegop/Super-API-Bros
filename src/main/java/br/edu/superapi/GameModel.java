@@ -64,6 +64,8 @@ public final class GameModel {
     private LogicChallenge[] logic;
     public final List<Rectangle> platforms = new ArrayList<>(), collectibles = new ArrayList<>(), hearts = new ArrayList<>();
     public final List<Enemy> enemies = new ArrayList<>();
+    private List<RouteSection> sections = List.of();
+    public List<RouteSection> sections() { return sections; }
     public final List<Ball> balls = new ArrayList<>();
     public GameModel() { restart(); }
     public GameModel(long seed) { restart(seed); }
@@ -109,41 +111,33 @@ public final class GameModel {
         platforms.clear(); collectibles.clear(); hearts.clear(); enemies.clear(); balls.clear();
         for (Player p : List.of(first, second)) { p.abilityTicks = p.effectTicks = 0; p.abilityUsed = false; }
         Random random = new Random(seed ^ (region() * 7919L));
+        sections = RouteSection.generate(random, region());
         int from = 0;
-        // Ten hand-bounded blocks around the midpoint checkpoint. Random variants never exceed tested jump limits.
-        for (int block = 0; block < BLOCK_COUNT; block++) {
-            int start = blockStart(block), gap = start + 500, gapWidth = 100 + (region() % 2) * 20;
-            platforms.add(new Rectangle(from, FLOOR, gap - from, 100)); from = gap + gapWidth;
-            int variant = random.nextInt(3);
-            for (int step = 0; step < 3; step++) {
-                int px = start + step * 160;
-                int py = step == 0 ? 410 : step == 1 ? 340 : variant == 0 ? 270 : 410;
-                Rectangle coin = new Rectangle(px + 55, py - 32, 18, 22); collectibles.add(coin);
-                boolean moving = step == 1 && (region() == 6 || region() == 8 || region() == 5 && block % 2 == 0);
-                boolean fragile = step == 1 && (region() == 7 || region() == 9 || region() == 2 && block % 3 == 0);
-                platforms.add(moving || fragile ? new TerrainPlatform(px, py, 120,
-                        moving ? TerrainPlatform.Kind.ICE_LIFT : TerrainPlatform.Kind.CRUMBLING, coin)
-                        : new Rectangle(px, py, 120, 22));
-            }
+        for (int block = 0; block < sections.size(); block++) {
+            RouteSection section = sections.get(block);
+            Rectangle gap = section.gap();
+            platforms.add(new Rectangle(from,FLOOR,gap.x-from,100)); from=gap.x+gap.width;
+            platforms.addAll(section.ledges()); collectibles.addAll(section.coins());
+            int start = section.ledges().get(0).x;
             EnemyKind ground = switch (region()) {
                 case 6 -> EnemyKind.SKATER;
                 case 7, 9 -> EnemyKind.SCAVENGER;
                 case 1, 4, 8 -> EnemyKind.HOPPER;
                 default -> EnemyKind.CRAWLER;
             };
-            enemies.add(new Enemy(start + 20, start + 180, FLOOR - 28, 1.2 + random.nextDouble() * .4, ground));
-            if (block == 2 || block == 7) hearts.add(new Rectangle(start + 70, FLOOR - 30, 24, 24));
+            enemies.add(new Enemy(start+15,start+160+random.nextInt(70),FLOOR-28,1.2+random.nextDouble()*.4,ground));
+            if (block == 2 || block == 7) hearts.add(new Rectangle(start+70,FLOOR-30,24,24));
         }
-        platforms.add(new Rectangle(from, FLOOR, WIDTH - from, 100));
-        // ceil(previous population * 1.8), with 22 for the two new regions.
+        platforms.add(new Rectangle(from,FLOOR,WIDTH-from,100));
         int population = region() < 6 ? 20 : region() == 6 ? 17 : 22;
-        for (int i = 0; enemies.size() < population; i++) {
-            int block = i % BLOCK_COUNT, step = i < BLOCK_COUNT ? 0 : 2;
-            int start = blockStart(block) + step * 160;
-            EnemyKind kind = region() == 6 ? EnemyKind.FROST_WISP : region() == 7 || region() == 9
-                    ? EnemyKind.SCAVENGER : region() == 5 || region() == 8 ? EnemyKind.DRONE : EnemyKind.CRAWLER;
-            int baseY = kind == EnemyKind.DRONE || kind == EnemyKind.FROST_WISP ? 245 : platforms.get(block * 4 + 1 + step).y - 28;
-            enemies.add(new Enemy(start + 10, start + 85, baseY, 1.1, kind));
+        for (int i=0; enemies.size()<population; i++) {
+            RouteSection section = sections.get(i % BLOCK_COUNT);
+            List<Rectangle> stable = section.ledges().stream().filter(p -> !(p instanceof TerrainPlatform)).toList();
+            Rectangle support = stable.get(random.nextInt(stable.size()));
+            EnemyKind kind = region() == 6 ? EnemyKind.FROST_WISP : region() == 7 || region() == 9 ? EnemyKind.SCAVENGER
+                    : region() == 5 || region() == 8 ? EnemyKind.DRONE : EnemyKind.CRAWLER;
+            int baseY = kind == EnemyKind.DRONE || kind == EnemyKind.FROST_WISP ? 240+random.nextInt(70) : support.y-28;
+            enemies.add(new Enemy(support.x+3,support.x+support.width-33,baseY,1.0+random.nextDouble()*.5,kind));
         }
         levelCoinTotal = collectibles.size(); respawn();
     }
@@ -167,12 +161,12 @@ public final class GameModel {
     }
     public boolean nearTerminal(int central) {
         int tx = central == 0 ? TERMINAL_X : LOGIC_X;
-        return players().stream().anyMatch(p -> Math.abs(p.x - tx) < 80 && p.y > 370);
+        return players().stream().anyMatch(p -> Math.abs(p.x - tx) < 80 && p.y > 370 && p.y <= FLOOR - 36);
     }
     public boolean canUseTerminal(int central) {
         if (central < 0 || central > 1 || won || gameOver || !centralReady(central) || !nearTerminal(central)) return false;
         int tx = central == 0 ? TERMINAL_X : LOGIC_X;
-        return !cooperative || players().stream().allMatch(p -> Math.abs(p.x - tx) < 180 && p.y > 370);
+        return !cooperative || players().stream().allMatch(p -> Math.abs(p.x - tx) < 180 && p.y > 370 && p.y <= FLOOR - 36);
     }
     public void completeApi() { if (canUseTerminal(0)) apiSolved = true; }
     public boolean submitLogic(String answer) {

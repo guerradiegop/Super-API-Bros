@@ -4,6 +4,16 @@ Expedição de plataforma em **Java 17**, em português, com dez regiões, seis 
 
 ## Executar
 
+Esta é a branch **sem-instalador**: código atual, testes e JAR compilado, sem os binários de instalação no histórico desta branch. A `main` mantém o instalador e seu histórico.
+
+Para baixar somente esta branch sem trazer o histórico das demais:
+
+```sh
+git clone --single-branch --branch sem-instalador --depth 1 https://github.com/guerradiegop/Super-API-Bros.git
+```
+
+O empacotamento manual continua disponível em `scripts/package-windows.ps1`; seus arquivos de saída são ignorados pelo Git nesta branch.
+
 Requer Java 17+ com desktop Windows, Linux ou macOS. Baixe o repositório, extraia e execute:
 
 ```sh
@@ -56,7 +66,7 @@ A janela pode ser redimensionada. **F11** alterna tela cheia no monitor atual, e
 
 ## Campanha e regras
 
-* **10 fases de 7.344 unidades**: redução exata de **15%** sobre as 8.640 anteriores. Cada rota tem 10 blocos, 30 plataformas elevadas e 10 fendas, com corredores seguros junto às centrais. As populações de inimigos foram preservadas.
+* **10 fases de 7.344 unidades**: redução exata de **15%** sobre as 8.640 anteriores. Cada rota tem 10 trechos de 3 a 5 plataformas elevadas e 10 fendas, com corredores seguros junto às centrais. As populações de inimigos foram preservadas.
 * **30 moedas por fase**: 15 antes da central intermediária e 15 na segunda metade. A central intermediária exige as moedas da primeira metade; a final exige todas. A contagem é compartilhada na dupla.
 * **Duas centrais e dois desafios por fase:** uma de API (requisição HTTP e interpretação do JSON) e outra de lógica computacional. A central API fica no meio exato (3.672 unidades) e ativa o checkpoint ao ser concluída; a central lógica fica no final e libera a próxima região. A lógica exige a API concluída. O portal exige ambas concluídas; cancelar, falhar ou acertar apenas uma não abre a passagem.
 * **Energia inicial 3, máximo 7.** Há exatamente dois corações por fase, um em cada metade. Cada um concede +1, é removido ao coletar e não reaparece após perder energia. No máximo de energia, o coração permanece para uma coleta posterior. Corações e moedas são compartilhados na dupla.
@@ -81,7 +91,15 @@ A janela pode ser redimensionada. **F11** alterna tela cheia no monitor atual, e
 
 Nas oito regiões existentes, as populações correspondem a `ceil(população anterior × 1,8)`: 11→20, 9→17 e 12→22. As duas novas têm 22 inimigos cada. Há patrulheiros, saltadores, drones, patinadores, espectros de gelo e sucateiros que aceleram por proximidade.
 
-Placas frágeis avisam por rachaduras, cedem após 36 passos (0,6 s) e reaparecem após 180 passos (3 s). Elevadores levam as moedas junto com a plataforma. Esses mecanismos permitem novas tentativas sem tornar a coleta impossível.
+Placas frágeis avisam por rachaduras, cedem após 36 passos (0,6 s) e reaparecem após 180 passos (3 s). Elevadores levam as moedas junto com a plataforma e têm amplitudes, ritmos e posições iniciais sorteados. Patrulheiros terrestres ficam apoiados em superfícies estáveis; os voadores mantêm suas rotas aéreas. Esses mecanismos permitem novas tentativas sem tornar a coleta impossível.
+
+## Percursos de plataforma
+
+O gerador combina seis famílias: escada ascendente, patamar, arco, patamar elevado com descida, sequência de apoios menores e subida com retorno. A distribuição evita formatos consecutivos iguais e inclui todas as famílias em cada fase. Cada trecho tem três moedas, mesmo quando possui quatro ou cinco plataformas.
+
+Largura, altura, distância entre apoios, extensão dos corredores e largura das fendas variam por seed. Plataformas móveis e frágeis aparecem em posições diferentes, com maior frequência nos ambientes correspondentes. A geração reserva espaço para iniciar os saltos e mantém chão seguro no início, checkpoint e saída. As rotas podem ser atravessadas sem habilidades especiais, solo ou em dupla.
+
+Morrer mantém o mesmo percurso. O reinício dos elevadores restaura a posição inicial sorteada e acompanha a moeda; itens consumidos não reaparecem. Uma nova expedição gera outra distribuição. Centrais só aceitam interação na altura da área de acesso, e não enquanto o personagem ou seu parceiro cai abaixo do chão.
 
 ## Sorteio e desafios
 

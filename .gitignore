@@ -3,3 +3,8 @@ build/
 .idea/
 .vscode/
 *.iml
+
+# Installer binaries stay out of the lightweight branch.
+/installers/
+*.exe
+*.msi
