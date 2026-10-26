@@ -33,11 +33,15 @@ try {
         Start-Sleep -Seconds 1
         $process.Refresh()
         if ($process.HasExited) { throw "Launcher encerrou antes de abrir a janela: $($process.ExitCode)" }
-        if ($process.MainWindowHandle -ne 0) { $opened = $true; break }
+        # jpackage may keep a parent launcher and create another process for the JVM.
+        $windows = @(Get-Process -Name 'RedeDosHorizontes' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
+        if ($windows.Count -gt 0) { $opened = $true; break }
     }
     if (-not $opened) { throw 'A janela do jogo não apareceu em 30 segundos.' }
     Write-Host 'Launcher nativo abriu a janela com sucesso.'
-} finally { if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force } }
+} finally {
+    Get-Process -Name 'RedeDosHorizontes' -ErrorAction SilentlyContinue | Stop-Process -Force
+}
 jpackage --type exe --name RedeDosHorizontes --app-version $Version --app-image $app --dest "$stage/installer" --win-per-user-install --win-menu --win-shortcut --win-dir-chooser --win-upgrade-uuid 'd387f553-739b-445d-9816-3d91ac6ccace'
 Check-Exit 'Instalador EXE'
 New-Item installers -ItemType Directory -Force | Out-Null
