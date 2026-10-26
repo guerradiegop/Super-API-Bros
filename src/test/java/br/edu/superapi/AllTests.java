@@ -156,35 +156,36 @@ public final class AllTests {
             game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 2, "No teto, coração permanece disponível");
             game.lives = 6; game.tick(false, false, false); check(game.lives == 7 && game.hearts.size() == 1, "Coleta após perder energia");
             // Traverse every elevated route and every gap under multiple seeds and lift phases.
-            for (int seed = 0; seed < 2; seed++) for (int phase = 0; phase < 10; phase++)
-                for (int block = 0; block < GameModel.BLOCK_COUNT; block++) for (int delay : new int[]{0, 90}) {
+            for (int seed = 0; seed < 10; seed++) for (int phase = 0; phase < 10; phase++)
+                for (int block = 0; block < GameModel.BLOCK_COUNT; block++) for (int delay : new int[]{0, 45, 90}) {
                     game.restart(seed); game.level = phase; game.load(); game.enemies.clear();
                     for (int i = 0; i < delay; i++) game.tick(false, false, false);
-                    int firstIndex = block * 4 + 1;
-                    var lower = game.platforms.get(firstIndex);
-                    game.first.x = lower.x - 45; game.first.y = 452; game.first.vy = 0; game.first.grounded = true;
-                    for (int step = 0; step < 3; step++) {
-                        var target = game.platforms.get(firstIndex + step);
-                        jumpTo(game, target.x + 45);
-                        check(Math.abs(game.first.y + 38 - target.y) < 1, "Plataforma alcançável: " + game.region() + "/" + block + "/" + step);
+                    var route = game.sections().get(block);
+                    var lower = route.ledges().get(0);
+                    game.first.x = lower.x - 85; game.first.y = 452; game.first.vy = 0; game.first.grounded = true;
+                    for (int step = 0; step < route.ledges().size(); step++) {
+                        var target = route.ledges().get(step);
+                        jumpTo(game, target.x + target.width / 2 - 14);
+                        check(Math.abs(game.first.y + 38 - target.y) < 1, "Plataforma alcançável: " + game.region() + "/" + block + "/" + step + " seed " + seed + " delay " + delay);
                     }
                     check(game.collectedLevelCoins() == 3, "Todas as moedas da rota alcançáveis");
-                    int gap = lower.x + 500, width = 100 + game.region() % 2 * 20;
+                    int gap = route.gap().x, width = route.gap().width;
                     game.first.x = gap - 40; game.first.y = 452; game.first.vy = 0; game.first.grounded = true;
                     int energy = game.lives;
                     game.tick(false, true, true); for (int i = 0; i < 42; i++) game.tick(false, true, false);
-                    check(game.first.x > gap + width && game.lives == energy, "Fenda atravessável");
+                    check(game.first.x > gap + width && game.lives == energy, "Fenda atravessável " + game.region() + "/" + block + " seed " + seed);
                 }
             // Both explorers climb the generated routes with staggered positions and independent inputs.
             for (int phase = 0; phase < 10; phase++) for (int block = 0; block < GameModel.BLOCK_COUNT; block++) {
                 game.restart(99); game.cooperative = true; game.level = phase; game.load(); game.enemies.clear();
-                var lower = game.platforms.get(block * 4 + 1);
-                game.first.x = lower.x - 45; game.second.x = lower.x - 65;
+                var route = game.sections().get(block);
+                var lower = route.ledges().get(0);
+                game.first.x = lower.x - 85; game.second.x = lower.x - 80;
                 game.first.y = game.second.y = 452; game.first.vy = game.second.vy = 0;
                 game.first.grounded = game.second.grounded = true;
-                for (int step = 0; step < 3; step++) {
-                    var target = game.platforms.get(block * 4 + 1 + step);
-                    int targetOne = target.x + 45, targetTwo = target.x + 65;
+                for (int step = 0; step < route.ledges().size(); step++) {
+                    var target = route.ledges().get(step);
+                    int targetOne = target.x + target.width / 2 - 14, targetTwo = targetOne + 15;
                     game.tick(new GameModel.Input(false, true, true), new GameModel.Input(false, true, true));
                     for (int frame = 0; frame < 65 && (!game.first.grounded || !game.second.grounded); frame++) {
                         game.tick(new GameModel.Input(game.first.x > targetOne + 4, game.first.x < targetOne, false),
@@ -246,15 +247,15 @@ public final class AllTests {
             game.restart(0); game.cooperative = true;
             for (int phase = 0; phase < 10; phase++) if (game.regionOrder()[phase] == 6) { game.level = phase; break; }
             game.load(); game.enemies.clear();
-            TerrainPlatform lift = (TerrainPlatform)game.platforms.get(2);
-            game.first.x = lift.x + 15; game.second.x = lift.x + 65;
+            TerrainPlatform lift = (TerrainPlatform)game.platforms.stream().filter(p -> p instanceof TerrainPlatform t && t.kind == TerrainPlatform.Kind.ICE_LIFT).findFirst().orElseThrow();
+            game.first.x = lift.x + 15; game.second.x = lift.x + 45;
             game.first.y = game.second.y = lift.y - 38; game.first.grounded = game.second.grounded = true;
             for (int i = 0; i < 40; i++) game.tick(false, false, false);
             check(game.first.y == lift.y - 38 && game.second.y == lift.y - 38, "Elevador carrega os dois");
             for (int phase = 0; phase < 10; phase++) if (game.regionOrder()[phase] == 7) { game.level = phase; break; }
             game.load(); game.enemies.clear();
-            TerrainPlatform fragile = (TerrainPlatform)game.platforms.get(2);
-            game.first.x = fragile.x + 15; game.second.x = fragile.x + 65;
+            TerrainPlatform fragile = (TerrainPlatform)game.platforms.stream().filter(p -> p instanceof TerrainPlatform t && t.kind == TerrainPlatform.Kind.CRUMBLING).findFirst().orElseThrow();
+            game.first.x = fragile.x + 15; game.second.x = fragile.x + 45;
             game.first.y = game.second.y = fragile.y - 38; game.first.grounded = game.second.grounded = true;
             for (int i = 0; i < 35; i++) game.tick(false, false, false);
             check(fragile.active() && fragile.cracking(), "Dois passageiros não aceleram rachadura");
@@ -274,6 +275,7 @@ public final class AllTests {
             game.restart(); check(!game.won && game.lives == 3 && game.hearts.size() == 2, "Reinício integral");
             AbilityTests.run();
             ScoreTests.run();
+            RouteTests.run();
             ExpansionTests.run(client);
             testUI(client, args.length > 0 && args[0].equals("--render"));
         }
