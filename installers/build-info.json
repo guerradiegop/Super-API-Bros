@@ -1,0 +1,13 @@
+{
+  "version": "1.0.2",
+  "source_commit": "8cc19b702d3a352a4f436be7621e90bfad853c53",
+  "platform": "Windows x64",
+  "java": "Temurin 17",
+  "sha256": "a822f63122dfdf9277658c1fa73ad9ef160281fea32f647a191d2ffcbe16bee5",
+  "bytes": 56925184,
+  "validation": [
+    "source tests",
+    "bundled runtime tests",
+    "native launcher window opened"
+  ]
+}
